@@ -7,6 +7,8 @@
 #include "cli.h"
 #include "stdio.h"
 #include "string.h"
+#include "sys/time.h"
+#include "stdlib.h"
 
 int Unused_Args_CallBack(int argc, char **args)
 {
@@ -22,7 +24,7 @@ int Unused_Args_CallBack(int argc, char **args)
     return 0;
 }
 
-int main(int argc, char *args[])
+int Command_test(int argc, char *args[])
 {
     //It's Recommended to build a temperory struct to store result.
     struct DataStruct
@@ -31,6 +33,8 @@ int main(int argc, char *args[])
         char StringData[256];
         char BoolData;
     } Tempdata;
+
+    memset(&Tempdata, 0, sizeof(Tempdata));
 
     //Build the option list for main
     stCliOption MainOpt[] =
@@ -45,33 +49,52 @@ int main(int argc, char *args[])
     //Run Arguments parse using MainOpt
     Cli_parseArgs(argc, args, MainOpt);
 
+    //Print Result
+    printf("\nResult: Int[%d] String[%s] Bool[%d]\n", Tempdata.IntData, Tempdata.StringData, Tempdata.BoolData);
+
+    return 0;
+}
+
+int Command_time(int argc, char *args[])
+{
+    printf("Current Time:[%ld]", time(NULL));
+    return 0;
+}
+
+int Command_quit(int argc, char *args[])
+{
+    exit(0);
+}
+
+int main(int argc, char *args[])
+{
+    stCliCommand MainCmd[] =
+    {
+    { "test", Command_test, "Run a argument parse example." },
+    { "time", Command_time, "Get current time stamp" },
+    { "quit", Command_quit, "Quit the process" },
+    { NULL, NULL } };
+
+    //Run initial commands
+    Cli_excuteCommand(argc - 1, ++args, MainCmd);
+
+    //Start a mini console
     while (1)
     {
-
+        //Get a command string
         char sbuf[256] =
         { 0 };
+        printf(">");
+        Cli_getCommand(sbuf);
+
+        //Convert String to Args
         char *argbuf[16] =
         { 0 };
-        int count = 0;
+        int argcount = 0;
+        Cli_convertStrToArgs(sbuf, &argcount, argbuf);
 
-        //Clear data buffer.
-        memset(&Tempdata, 0, sizeof(Tempdata));
-
-        //Get a command from stdin
-        printf("Please in put a string:\n");
-        Cli_getString(sbuf);
-        printf("Get String: %s", sbuf);
-
-        //Parse the string to args
-        Cli_getArgsFromString(sbuf, &count, argbuf);
-
-        printf("String after split: %s", sbuf);
-
-        //Do Args Prase
-        Cli_parseArgs(count, (char **) argbuf, MainOpt);
-
-        //Print result
-        printf("\nResult: Int[%d] String[%s] Bool[%d]\n", Tempdata.IntData, Tempdata.StringData, Tempdata.BoolData);
+        //Run commands with Args
+        Cli_excuteCommand(argcount, argbuf, MainCmd);
     }
 
     return 0;

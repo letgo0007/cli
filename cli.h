@@ -40,9 +40,19 @@ typedef struct stCliOption
     CliCallBack *CallBack;      //Function call back
 } stCliOption;
 
-CLI_RET Cli_getString(char *string);
+typedef struct stCliCommand
+{
+    const char *CommandName;
+    CliCallBack *FuncCallBack;
+    const char *HelpText;
 
-CLI_RET Cli_getArgsFromString(char *string, int *argc, char *args[]);
+} stCliCommand;
+
+CLI_RET Cli_getCommand(char *string);
+
+CLI_RET Cli_convertStrToArgs(char *string, int *argc, char *args[]);
+
+int Cli_excuteCommand(int argc, char *args[], stCliCommand command[]);
 
 int Cli_parseArgs(int argc, char *args[], stCliOption options[]);
 

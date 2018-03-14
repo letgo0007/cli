@@ -13,12 +13,22 @@
 #include <stdlib.h>
 #include "cli.h"
 
+#define CLI_PRINT(msg, args...)  \
+    do {\
+        printf(msg, ##args);\
+    } while (0)
+
+#define CLI_ERROR(msg, args...)  \
+    do {\
+        printf("\e[31m"msg"\e[0m", ##args);\
+    } while (0)
+
 //Check null pointer and return failure with a simple error message.
 #define CHECK_NULL_PTR(ptr) \
     do {\
         if (ptr == NULL) \
         {\
-            printf("\033[31mERROR: NULL pointer="#ptr"<%s:%d>\033[0m\n", __FILE__, __LINE__);\
+            CLI_ERROR("ERROR: NULL pointer="#ptr"<%s:%d>\n", __FILE__, __LINE__);\
             return CLI_FAILURE;\
         }\
     }while(0)
@@ -29,7 +39,7 @@
         CLI_RET ret = func;\
         if (CLI_SUCCESS != ret)\
         {\
-            printf("\033[31mERROR: Return=[%d] "#func"<%s:%d>\033[0m\n", ret, __FILE__, __LINE__);\
+            CLI_ERROR("ERROR: Return=[%d] "#func"<%s:%d>\n", ret, __FILE__, __LINE__);\
             goto exit;\
         }\
     } while (0)
@@ -39,21 +49,34 @@
  * @param options   Option list
  * @return          CLI_SUCCESS or CLI_FAILURE of the process
  */
-CLI_RET cli_help(stCliOption options[])
+CLI_RET cli_printOptionHelp(stCliOption options[])
 {
     int i = 0;
     while (options[i].OptType != OPT_END)
     {
         if (options[i].OptType == OPT_COMMENT)
         {
-            printf("%s:\n", options[i].HelpText);
+            CLI_PRINT("%s:\n", options[i].HelpText);
         }
         else
         {
-            printf("\t-%-4c--%-10s:%s\n", options[i].ShortName, options[i].LongName, options[i].HelpText);
+            CLI_PRINT("\t-%-4c--%-10s:%s\n", options[i].ShortName, options[i].LongName, options[i].HelpText);
         }
         i++;
     }
+    return CLI_SUCCESS;
+}
+
+CLI_RET cli_printCommandHelp(stCliCommand commands[])
+{
+    int i = 0;
+    CLI_PRINT("%-8s%s\n", "help", "Show the command list");
+    while ((commands[i].CommandName != NULL) && (commands[i].FuncCallBack != NULL))
+    {
+        CLI_PRINT("%-8s%s\n", commands[i].CommandName, commands[i].HelpText);
+        i++;
+    }
+
     return CLI_SUCCESS;
 }
 
@@ -72,7 +95,7 @@ int cli_getData(char *string, void *data_ptr, OPT_TYPE type)
     {
         if (string == NULL)
         {
-            printf("\033[31mERROR: NULL data for type Integer!\033[0m\n");
+            CLI_ERROR("ERROR: NULL data for type Integer!\n");
             return 0;
         }
 
@@ -91,7 +114,7 @@ int cli_getData(char *string, void *data_ptr, OPT_TYPE type)
     {
         if (string == NULL)
         {
-            printf("\033[31mERROR: NULL data for type String!\033[0m\n");
+            CLI_ERROR("ERROR: NULL data for type String!\n");
             return 0;
         }
 
@@ -115,7 +138,7 @@ int cli_getData(char *string, void *data_ptr, OPT_TYPE type)
     }
     default:
     {
-        error: printf("\033[31mERROR:Invalid data args of [%s]\n\033[0m", string);
+        error: CLI_ERROR("ERROR:Invalid data args of [%s]\n", string);
         break;
     }
     }
@@ -144,7 +167,7 @@ int cli_handleLongOpt(char *arg_name, char *arg_data, stCliOption options[])
                 // Special type
                 if (options[i].OptType == OPT_HELP)
                 {
-                    cli_help(options);
+                    cli_printOptionHelp(options);
                     return 0;
                 }
 
@@ -156,7 +179,7 @@ int cli_handleLongOpt(char *arg_name, char *arg_data, stCliOption options[])
         i++;
     }
 
-    printf("\033[31mERROR: Not Supported Long Option [%s]\n\033[0m", arg_name);
+    CLI_ERROR("ERROR: Unknown Long Option [%s]\n", arg_name);
     return 0;
 }
 
@@ -175,7 +198,7 @@ int cli_handleShortOpt(char *arg_name, char *arg_data, stCliOption options[])
                 // Special type
                 if (options[i].OptType == OPT_HELP)
                 {
-                    cli_help(options);
+                    cli_printOptionHelp(options);
                     return 0;
                 }
 
@@ -187,7 +210,7 @@ int cli_handleShortOpt(char *arg_name, char *arg_data, stCliOption options[])
         i++;
     }
 
-    printf("\033[31mERROR: Not Supported Short Option [-%c]\n\033[0m", arg_name[1]);
+    CLI_ERROR("ERROR: Unknown Short Option [-%c]\n", arg_name[1]);
     return 0;
 }
 
@@ -196,9 +219,10 @@ int cli_handleShortOpt(char *arg_name, char *arg_data, stCliOption options[])
  * @param string    Pointer to string buffer.
  * @return
  */
-CLI_RET Cli_getString(char *string)
+CLI_RET Cli_getCommand(char *string)
 {
     fgets(string, 100, stdin);
+
     return CLI_SUCCESS;
 }
 
@@ -210,7 +234,7 @@ CLI_RET Cli_getString(char *string)
  * @param args      Arguments string Output, e.g. "This" "is" "a" "help"
  * @return  CLI_SUCEESS or CLI_FAILURE of the process.
  */
-CLI_RET Cli_getArgsFromString(char *string, int *argc, char *args[])
+CLI_RET Cli_convertStrToArgs(char *string, int *argc, char *args[])
 {
     CHECK_NULL_PTR(string);
     CHECK_NULL_PTR(argc);
@@ -231,6 +255,39 @@ CLI_RET Cli_getArgsFromString(char *string, int *argc, char *args[])
     *argc = i;
 
     return CLI_SUCCESS;
+}
+
+int Cli_excuteCommand(int argc, char *args[], stCliCommand commands[])
+{
+    if (argc == 0)
+    {
+        //No Commands to run
+        return CLI_SUCCESS;
+    }
+    CHECK_NULL_PTR(args);
+    CHECK_NULL_PTR(commands);
+
+    int i = 0;
+
+    //Loop check CommandName and run command.
+    while ((commands[i].CommandName != NULL) && (commands[i].FuncCallBack != NULL))
+    {
+        if (strcmp(commands[i].CommandName, args[0]) == 0)
+        {
+            return commands[i].FuncCallBack(argc - 1, ++args);
+        }
+        i++;
+    }
+
+    //"help" is a built-in command to show the Command list.
+    if (strcmp("help", args[0]) == 0)
+    {
+        return cli_printCommandHelp(commands);
+    }
+
+    //Unknown commands!
+    CLI_ERROR("ERROR: Unknown Command of [%s]\n", args[0]);
+    return CLI_FAILURE;
 }
 
 /*!@brief Parse the arguments with given options.
