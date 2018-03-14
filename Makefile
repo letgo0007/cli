@@ -27,7 +27,7 @@ all:
 	$(CC) $(CSOURCE) $(CINCLUDE) $(CFLAG) $(LIBPATH) $(LIBFLAG) -o$(TARGET)
 	
 debug: all
-	./cli "this is a test 12 34 56"
+	./cli
 
 clean: 
 	rm -f $(TARGET)
