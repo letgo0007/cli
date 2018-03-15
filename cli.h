@@ -8,8 +8,9 @@
 #ifndef CLI_H_
 #define CLI_H_
 
+#include <stdint.h>
+
 #define CLI_ARG_COUNT_MAX       16      //Number of Args supported.
-#define CLI_ARGS_SIZE_MAX       16      //Maximum Length of a single args
 
 typedef enum CLI_RET
 {
@@ -18,13 +19,22 @@ typedef enum CLI_RET
 
 typedef enum OPT_TYPE
 {
+    // Non-data options
     OPT_END = 0x00,             //End of options
-    OPT_HELP = 0x01,            //Show help text of all options.
-    OPT_COMMENT = 0x02,         //Option value is comments, will print help string only.
+    OPT_HELP,                   //Show help text of all options.
+    OPT_COMMENT,                //Option value is comments, will print help string only.
 
-    OPT_INT = 0x10,             //Option value is integer
-    OPT_STRING = 0x11,          //Option value is string
-    OPT_BOOL = 0x12,            //Option value is boolean
+
+    // Basic Data options
+    OPT_INT,                    //Option value is integer
+    OPT_STRING,                 //Option value is string
+    OPT_BOOL,                   //Option value is boolean
+
+    // Extended Data options, not finish yet.
+    OPT_MULTI_INT,              //Get multiple integer value
+    OPT_MULTI_STRING,           //Get Multiple string value
+    OPT_BIT,                    //Set a single bit.
+    OPT_CALLBACK,               //Run the Call back function only.
 
 } OPT_TYPE;
 
@@ -36,15 +46,16 @@ typedef struct stCliOption
     const char ShortName;       //Option short name, e.g. 't'
     const char *LongName;       //Option long name, e.g. "test"
     const char *HelpText;       //Option help text, e.g. "Run the test"
-    void *PtrValue;             //Pointer to store option value
+    void *ValuePtr;             //Pointer to store option value
     CliCallBack *CallBack;      //Function call back
+    int ValueCount;             //Data amount for multiple data options
 } stCliOption;
 
 typedef struct stCliCommand
 {
-    const char *CommandName;
-    CliCallBack *FuncCallBack;
-    const char *HelpText;
+    const char *CommandName;    //Command Name
+    CliCallBack *FuncCallBack;  //Function call back
+    const char *HelpText;       //Text to describe the function.
 
 } stCliCommand;
 

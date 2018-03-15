@@ -10,8 +10,19 @@
 #include "sys/time.h"
 #include "stdlib.h"
 
-int Unused_Args_CallBack(int argc, char **args)
+/*!@brief A simple example of handling un-used args. Just print them.
+ *
+ * @param argc  Argument Count
+ * @param args  Pointer to Argument String
+ * @return      Error Code
+ */
+int PrintArgs(int argc, char **args)
 {
+    if ((argc == 0) || (args == 0))
+    {
+        return 0;
+    }
+
     //Example of a call back to handle un-used args.
     //Pass un-used args back;
     int i;
@@ -24,6 +35,13 @@ int Unused_Args_CallBack(int argc, char **args)
     return 0;
 }
 
+/*!@brief Handler for command "test".
+ *        An example to get 1x interger value, 1x string value, 1x bool value.
+ *
+ * @param argc  Argument Count
+ * @param args  Pointer to Argument String
+ * @return      Error Code
+ */
 int Command_test(int argc, char *args[])
 {
     //It's Recommended to build a temperory struct to store result.
@@ -31,7 +49,7 @@ int Command_test(int argc, char *args[])
     {
         int IntData;
         char StringData[256];
-        char BoolData;
+        _Bool BoolData;
     } Tempdata;
 
     memset(&Tempdata, 0, sizeof(Tempdata));
@@ -44,7 +62,7 @@ int Command_test(int argc, char *args[])
     { OPT_INT, 'i', "int", "Get a Integer value", (void*) &Tempdata.IntData },
     { OPT_STRING, 's', "string", "Get a String value", (void*) Tempdata.StringData },
     { OPT_BOOL, 'b', "bool", "Get a Boolean value", (void*) &Tempdata.BoolData },
-    { OPT_END, 0, NULL, NULL, NULL, Unused_Args_CallBack } };
+    { OPT_END, 0, NULL, NULL, NULL, PrintArgs } };
 
     //Run Arguments parse using MainOpt
     Cli_parseArgs(argc, args, MainOpt);
@@ -55,12 +73,16 @@ int Command_test(int argc, char *args[])
     return 0;
 }
 
+/*!@brief Handler for command "time". Print Unix time stamp.
+ */
 int Command_time(int argc, char *args[])
 {
     printf("Current Time:[%ld]", time(NULL));
     return 0;
 }
 
+/*!@brief Handler for command "quit". Quit process.
+ */
 int Command_quit(int argc, char *args[])
 {
     exit(0);
@@ -78,7 +100,7 @@ int main(int argc, char *args[])
     //Run initial commands
     Cli_excuteCommand(argc - 1, ++args, MainCmd);
 
-    //Start a mini console
+    //Start a Mini-Terminal
     while (1)
     {
         //Get a command string

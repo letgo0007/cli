@@ -13,11 +13,13 @@
 #include <stdlib.h>
 #include "cli.h"
 
+//General Print
 #define CLI_PRINT(msg, args...)  \
     do {\
         printf(msg, ##args);\
     } while (0)
 
+//Error Message output, with RED color.
 #define CLI_ERROR(msg, args...)  \
     do {\
         printf("\e[31m"msg"\e[0m", ##args);\
@@ -43,6 +45,41 @@
             goto exit;\
         }\
     } while (0)
+
+//Get a integer value from text.
+CLI_RET cli_getInt(char *string, int *data_ptr)
+{
+    CHECK_NULL_PTR(string);
+    CHECK_NULL_PTR(data_ptr);
+
+    char *s = NULL;
+    *data_ptr = (int) strtol(string, &s, 0);
+
+    if (*s != 0)
+    {
+        return CLI_FAILURE;
+    }
+    return CLI_SUCCESS;
+}
+
+//Get Multiple integer value from a list of text.
+int cli_getMultiInt(char *string[], void *data_ptr, int count)
+{
+    CHECK_NULL_PTR(string);
+    CHECK_NULL_PTR(data_ptr);
+
+    int i;
+    int *d = (int*) data_ptr;
+
+    //Loop convert integer data.
+    for (i = 0; i < count; i++)
+    {
+        CHECK_FUNC_EXIT(cli_getInt(string[i], d++));
+    }
+
+    //Return with actual data converted.
+    exit: return i;
+}
 
 /*!@brief Print option list with help text.
  *
@@ -126,7 +163,7 @@ int cli_getData(char *string, void *data_ptr, OPT_TYPE type)
     }
     case OPT_BOOL:
     {
-        char *d = (char*) data_ptr;
+        _Bool *d = (_Bool*) data_ptr;
         *d = 1;
 
         return 0;                   //No data needed for Boolean type
@@ -172,7 +209,7 @@ int cli_handleLongOpt(char *arg_name, char *arg_data, stCliOption options[])
                 }
 
                 // Convert arg_data
-                c = cli_getData(arg_data, options[i].PtrValue, options[i].OptType);
+                c = cli_getData(arg_data, options[i].ValuePtr, options[i].OptType);
                 return c;
             }
         }
@@ -203,7 +240,7 @@ int cli_handleShortOpt(char *arg_name, char *arg_data, stCliOption options[])
                 }
 
                 // Convert arg_data
-                c = cli_getData(arg_data, options[i].PtrValue, options[i].OptType);
+                c = cli_getData(arg_data, options[i].ValuePtr, options[i].OptType);
                 return c;
             }
         }
@@ -328,16 +365,16 @@ int Cli_parseArgs(int argc, char *args[], stCliOption options[])
         }
     }
 
-    // Call back to handle un-used args.
-    for (i = 0; i < argc; i++)
+    // If there is a Callback on OPT_END, use it to handle the un-used args.
+    for (i = 0;; i++)
     {
         if ((options[i].OptType == OPT_END) && (options[i].CallBack != NULL))
         {
-            options[i].CallBack(unused_argc, unused_args);
+            return options[i].CallBack(unused_argc, unused_args);
         }
     }
 
-    //Pass un-used args back;
+    //There's no defined call back at OPT_END, will pass back the unused args.
     for (i = 0; i < unused_argc; i++)
     {
         args[i] = unused_args[i];
