@@ -6,7 +6,8 @@ CC = gcc
 ###C source file
 CSOURCE= \
 main.c\
-cli.c
+cli.c\
+cmdlist.c
 
 ###C include path
 CINCLUDE = -I.

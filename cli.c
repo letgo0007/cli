@@ -1,9 +1,11 @@
-/*
- * cli.c
+/******************************************************************************
+ * @file    cli.c
+ *          CLI (Command Line Interface) function.
  *
- *  Created on: Mar 13, 2018
- *      Author: nickyang
- */
+ * @author  Nick Yang
+ * @date    2018/03/15
+ * @version V0.1
+ *****************************************************************************/
 
 #ifndef CLI_C_
 #define CLI_C_
@@ -53,12 +55,15 @@ CLI_RET cli_getInt(char *string, int *data_ptr)
     CHECK_NULL_PTR(data_ptr);
 
     char *s = NULL;
-    *data_ptr = (int) strtol(string, &s, 0);
+    int buf = 0;
+    buf = (int) strtol(string, &s, 0);
 
     if (*s != 0)
     {
         return CLI_FAILURE;
     }
+
+    *data_ptr = buf;
     return CLI_SUCCESS;
 }
 
@@ -130,22 +135,12 @@ int cli_getData(char *string, void *data_ptr, OPT_TYPE type)
     {
     case OPT_INT:
     {
-        if (string == NULL)
-        {
-            CLI_ERROR("ERROR: NULL data for type Integer!\n");
-            return 0;
-        }
-
-        char *s = NULL;             //Remaining string pointer
-        int *d = (int*) data_ptr;   //Convert pointer type to integer
-
-        *d = (int) strtol(string, &s, 0);
-        if (*s != 0)
+        if(CLI_FAILURE == cli_getInt(string, (int*) data_ptr))
         {
             goto error;
         }
-
-        return 1;                   //Convert 1x data string for Integer type
+        return 1;
+        break;
     }
     case OPT_STRING:
     {
@@ -323,7 +318,7 @@ int Cli_excuteCommand(int argc, char *args[], stCliCommand commands[])
     }
 
     //Unknown commands!
-    CLI_ERROR("ERROR: Unknown Command of [%s]\n", args[0]);
+    CLI_ERROR("ERROR: Unknown Command of [%s], try [help].\n", args[0]);
     return CLI_FAILURE;
 }
 
