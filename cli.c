@@ -13,6 +13,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include "cli.h"
 
 //General Print
@@ -53,9 +54,9 @@ CLI_RET cli_getInt(char *string, int *data_ptr)
 {
     CHECK_NULL_PTR(string);
     CHECK_NULL_PTR(data_ptr);
-
     char *s = NULL;
     int buf = 0;
+
     buf = (int) strtol(string, &s, 0);
 
     if (*s != 0)
@@ -135,7 +136,7 @@ int cli_getData(char *string, void *data_ptr, OPT_TYPE type)
     {
     case OPT_INT:
     {
-        if(CLI_FAILURE == cli_getInt(string, (int*) data_ptr))
+        if (CLI_FAILURE == cli_getInt(string, (int*) data_ptr))
         {
             goto error;
         }
@@ -251,10 +252,65 @@ int cli_handleShortOpt(char *arg_name, char *arg_data, stCliOption options[])
  * @param string    Pointer to string buffer.
  * @return
  */
+#define     STDIN_NON_BLOCK         1
+
 CLI_RET Cli_getCommand(char *string)
 {
-    fgets(string, 100, stdin);
 
+#if STDIN_NON_BLOCK
+    //Change STDIO into Non Blocking mode.
+#include <fcntl.h>
+    static _Bool initflag = 0;
+    if (initflag == 0)
+    {
+        int old_fl;
+        old_fl = fcntl(STDIN_FILENO, F_GETFL);              //Get original STDIN status flag
+        fcntl(STDIN_FILENO, F_SETFL, old_fl | O_NONBLOCK);  //Add NON-Blocking flag to STDIN
+        initflag = 1;
+        printf("STDIN set to non-blocking mode\n>");
+    }
+
+    //Build static buffers for string.
+    static char sbuf[256] =
+    { 0 };
+    static int idx = 0;
+    char c;
+
+    //Loop get 1x char from stdin and check.
+    do
+    {
+        c = fgetc(stdin);
+        switch (c)
+        {
+        case '\xff': //EOF
+        {
+            break;
+        }
+        case CLI_LINE_END_CHAR: //End of a line
+        {
+            sbuf[idx++] = c;
+            strcpy(string, sbuf);
+            memset(sbuf, 0, sizeof(sbuf));
+            idx = 0;
+            break;
+        }
+        case ' ' ... '~':   //Ch between ' '(32) & '~'(126) are printable characters.
+        {
+            sbuf[idx++] = c;
+            break;
+        }
+        default: //Reject white spaces, need special handle.
+        {
+            sbuf[idx++] = c;
+            break;
+        }
+        }
+    } while (c != '\xff');
+
+#else
+    //Blocking mode STDIN;
+    fgets(string, 255, stdin);
+#endif
     return CLI_SUCCESS;
 }
 
@@ -276,11 +332,11 @@ CLI_RET Cli_convertStrToArgs(char *string, int *argc, char *args[])
     int i = 0;
 
     //Get all the tokens from string.
-    token = strtok(string, " \n");
+    token = strtok(string, CLI_WHITE_SPACE_CHAR);
     while (token != NULL)
     {
         args[i++] = token;
-        token = strtok(NULL, " \n");
+        token = strtok(NULL, CLI_WHITE_SPACE_CHAR);
     }
 
     //return args count

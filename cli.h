@@ -12,7 +12,9 @@
 
 #include <stdint.h>
 
-#define CLI_ARG_COUNT_MAX       16      //Number of Args supported.
+#define CLI_ARG_COUNT_MAX       16          //!< Number of Args supported.
+#define CLI_LINE_END_CHAR       '\n'        //!< Character as line end.
+#define CLI_WHITE_SPACE_CHAR    " \t\n\r"   //!< Characters as args seperater
 
 //!@enum    CLI_RET
 //!         Return value enum for general Cli function calls.

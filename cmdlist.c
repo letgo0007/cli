@@ -107,6 +107,16 @@ int Command_quit(int argc, char *args[])
     exit(0);
 }
 
+int Command_echo(int argc, char *args[])
+{
+    int i = 0;
+    while (argc--)
+    {
+        printf("%s ", args[i++]);
+    }
+    return 0;
+}
+
 /*!@brief Build the command list.
  *
  */
@@ -116,5 +126,6 @@ stCliCommand MainCmd_V1[] =
 { "time", Command_time, "Get current time stamp" },
 { "quit", Command_quit, "Quit the process" },
 { "version", Command_ver, "Show Command version" },
+{ "echo", Command_echo, "Echo back command" },
 { NULL, NULL } };
 

@@ -24,10 +24,14 @@ int Terminal(stCliCommand cmdlist[])
     int argcount = 0;
 
     //Start a Mini-Terminal
-    printf(">");
+
     Cli_getCommand(sbuf);
-    Cli_convertStrToArgs(sbuf, &argcount, argbuf);
-    Cli_excuteCommand(argcount, argbuf, cmdlist);
+    if (strlen(sbuf) > 0)
+    {
+        Cli_convertStrToArgs(sbuf, &argcount, argbuf);
+        Cli_excuteCommand(argcount, argbuf, cmdlist);
+        printf(">");
+    }
 
     return 0;
 }
