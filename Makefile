@@ -7,7 +7,7 @@ CC = gcc
 CSOURCE= \
 main.c\
 cli.c\
-cmdlist.c
+terminal.c
 
 ###C include path
 CINCLUDE = -I.

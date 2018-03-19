@@ -73,12 +73,10 @@ typedef struct stCliCommand
 
 } stCliCommand;
 
-CLI_RET Cli_getCommand(char *string);
+CLI_RET CLI_convertStrToArgs(char *string, int *argc, char *args[]);
 
-CLI_RET Cli_convertStrToArgs(char *string, int *argc, char *args[]);
+int CLI_excuteCommand(int argc, char *args[], stCliCommand command[]);
 
-int Cli_excuteCommand(int argc, char *args[], stCliCommand command[]);
-
-int Cli_parseArgs(int argc, char *args[], stCliOption options[]);
+int CLI_parseArgs(int argc, char *args[], stCliOption options[]);
 
 #endif /* CLI_H_ */
