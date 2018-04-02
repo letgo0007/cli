@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "stdio.h"
+#include "unistd.h"
 
 #include "cli.h"
 #include "terminal.h"
@@ -20,6 +21,7 @@ int main(int argc, char *args[])
     while (1)
     {
         Terminal_run(MainCmd_V1);
+        usleep(1000);
     }
 
     return 0;

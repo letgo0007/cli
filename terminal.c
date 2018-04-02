@@ -19,11 +19,66 @@
 #if TER_GETS_NON_BLOCK
 #include <unistd.h>
 #include <fcntl.h>
+#include <termios.h>
 #endif
+
+static char history[TER_HISTORY_DEPTH][128] =
+{ "test -i 123", "test -s string_test", "help", "echo 123" };
+static int his_read_idx;
+static int his_store_idx;
+int ascii_esc_handle(char c, char* s, int *i)
+{
+    static char sbuf[8] =
+    { 0 };
+    static int idx = 0;
+
+    sbuf[idx++] = c;
+
+    if (strcmp(sbuf, "\e[A") == 0)
+    {
+        printf("\e[2K\r>%s", history[his_read_idx]);
+        strcpy(s, history[his_read_idx]);
+        *i = strlen(history[his_read_idx]);
+        his_read_idx--;
+        if (his_read_idx < 0)
+        {
+            his_read_idx = TER_HISTORY_DEPTH - 1;
+        }
+        //printf("Get Up Arrow\n");
+    }
+    else if (strcmp(sbuf, "\e[B") == 0)
+    {
+        printf("\e[2K\r>%s", history[his_read_idx]);
+        strcpy(s, history[his_read_idx]);
+        *i = strlen(history[his_read_idx]);
+        his_read_idx++;
+        if (his_read_idx >= TER_HISTORY_DEPTH)
+        {
+            his_read_idx = 0;
+        }
+    }
+    else if (strcmp(sbuf, "\e[C") == 0)
+    {
+        printf("Get Right Arrow\n");
+    }
+    else if (strcmp(sbuf, "\e[D") == 0)
+    {
+        printf("Get Left Arrow\n");
+    }
+
+    if (idx > 2)
+    {
+        memset(sbuf, 0, 8);
+        idx = 0;
+    }
+    return 0;
+}
 
 int osx_getc(FILE *fp)
 {
     char c = fgetc(fp);
+    //LoopBack function for non-blocking mode.
+
     return c;
 }
 
@@ -40,9 +95,22 @@ int osx_gets(char *dest_str, FILE *fp)
     static _Bool initflag = 0;
     if (initflag == 0)
     {
-        int old_fl;
-        old_fl = fcntl(STDIN_FILENO, F_GETFL);              //Get original STDIN status flag
-        fcntl(STDIN_FILENO, F_SETFL, old_fl | O_NONBLOCK);  //Add NON-Blocking flag to STDIN
+        struct termios new, old;
+        int flag;
+        if (tcgetattr(STDIN_FILENO, &old) == -1)
+            exit(1);
+        new = old;
+        new.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL | ICANON);
+        if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &new) == -1)
+        {
+            tcsetattr(STDIN_FILENO, TCSAFLUSH, &old);
+            exit(1);
+        }
+        flag = fcntl(STDIN_FILENO, F_GETFL);
+        flag |= O_NONBLOCK;
+        if (fcntl(STDIN_FILENO, F_SETFL, flag) == -1)
+            exit(1);
+
         initflag = 1;
         printf("STDIN set to non-blocking mode\n>");
     }
@@ -52,6 +120,7 @@ int osx_gets(char *dest_str, FILE *fp)
     { 0 };
     static int idx = 0;
     char c;
+    static int esc_count = 0;
 
     //Loop get 1x char from stdin and check.
     do
@@ -63,11 +132,18 @@ int osx_gets(char *dest_str, FILE *fp)
         {
             break;
         }
+        case '\e':
+        {
+            esc_count = 2;
+            ascii_esc_handle(c, sbuf, &idx);
+            break;
+        }
         case CLI_LINE_END_CHAR: //End of a line
         {
             sbuf[idx++] = c;
             strcpy(dest_str, sbuf);
             memset(sbuf, 0, sizeof(sbuf));
+            printf("\n");
 
             int ret = idx;
             idx = 0;
@@ -75,7 +151,18 @@ int osx_gets(char *dest_str, FILE *fp)
         }
         default: //Reject white spaces, need special handle.
         {
-            sbuf[idx++] = c;
+            if (esc_count > 0)
+            {
+                ascii_esc_handle(c, sbuf, &idx);
+                esc_count--;
+            }
+            else
+            {
+                sbuf[idx++] = c;
+#if TER_GETS_NON_BLOCK
+                printf("%c", c);
+#endif
+            }
             break;
         }
         }
@@ -288,6 +375,11 @@ stCliCommand MainCmd_V1[] =
 { "echo", Command_echo, "Echo back command" },
 { NULL, NULL } };
 
+stTermHistory TermHistory =
+{
+{
+{ 0 } }, 0, 0 };
+
 int Terminal_gets(char *string)
 {
 #ifdef __APPLE__                //!< Usage on MacOs
@@ -298,6 +390,40 @@ int Terminal_gets(char *string)
     static char teststring[] = "test -i 12345678\b\b\n test -h\n  help \n quit\n";
     return mcu_gets(string, teststring);
 #endif
+}
+
+int TermHistory_write(char* string, stTermHistory *history)
+{
+    history->index++;
+    history->depth++;
+    if (history->index >= TER_HISTORY_DEPTH)
+    {
+        history->index = 0;
+    }
+    if (history->depth >= TER_HISTORY_DEPTH)
+    {
+        history->depth = TER_HISTORY_DEPTH;
+    }
+
+    strcpy(history->strbuf[history->index], string);
+    return 0;
+}
+
+int TermHistory_read(int depth, char* string, stTermHistory *history)
+{
+    if (depth > history->depth)
+    {
+        depth = history->depth;
+    }
+
+    int read_idx = history->index - depth;
+    if (read_idx < 0)
+    {
+        read_idx = read_idx + TER_HISTORY_DEPTH;
+    }
+
+    strcpy(string, history->strbuf[read_idx]);
+    return read_idx;
 }
 
 /* Example of a Mini-Terminal */
