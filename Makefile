@@ -1,31 +1,32 @@
 #Copyright @2018 Nick Yang
 
 ###Compiler
-CC = gcc
+CC=gcc
 
 ###C source file
-CSOURCE= \
+CSOURCE=\
 main.c\
 cli.c\
-terminal.c
+terminal.c\
+term_io.c
 
 ###C include path
-CINCLUDE = -I.
+CINCLUDE=-I.
 
 ###C flags
-CFLAG = -Wall
+CFLAG=-Wall
 
 ###Lib search path
-LIBPATH =
+LIBPATH=
 
 ###Lib flags, make sure libft4222.dylib is in /usr/local/lib
-LIBFLAG =
+LIBFLAG=
 
 ###TARGET
-TARGET = cli
+TARGET=cli
 
 all:
-	$(CC) $(CSOURCE) $(CINCLUDE) $(CFLAG) $(LIBPATH) $(LIBFLAG) -o$(TARGET)
+	$(CC) $(CSOURCE) $(CINCLUDE) $(CFLAG) -o$(TARGET)$(LIBPATH) $(LIBFLAG)
 	
 debug: all
 	./cli
