@@ -1,100 +1,58 @@
-#include "term_history.h"
+#include <stdio.h>
+#include <string.h>
+
 #include "term_io.h"
 #include "terminal.h"
 
-#include <stdio.h>
-#include <string.h>
+#if TERM_IO_OS == TERM_OS_OSX
 #include <unistd.h>
 #include <fcntl.h>
 #include <termios.h>
+#endif
 
-stTermBuf TermBuf =
+#define GET_ARRAY_INDEX(old_idx, move, size)        (((unsigned int)old_idx + move) % (unsigned int)size)
+
+stTermHandle gTermHandle =
 {
 { 0 } };
 
-#if 0
-int ascii_esc_handle(char c, char* s, int *i)
-{
-    static char sbuf[8] =
-    {   0};
-    static int idx = 0;
-
-    sbuf[idx++] = c;
-
-    if (strcmp(sbuf, "\e[A") == 0)
-    {
-        printf("\e[2K\r>%s", history[his_read_idx]);
-        strcpy(s, history[his_read_idx]);
-        *i = strlen(history[his_read_idx]);
-        his_read_idx--;
-        if (his_read_idx < 0)
-        {
-            his_read_idx = TER_HISTORY_DEPTH - 1;
-        }
-        //printf("Get Up Arrow\n");
-    }
-    else if (strcmp(sbuf, "\e[B") == 0)
-    {
-        printf("\e[2K\r>%s", history[his_read_idx]);
-        strcpy(s, history[his_read_idx]);
-        *i = strlen(history[his_read_idx]);
-        his_read_idx++;
-        if (his_read_idx >= TER_HISTORY_DEPTH)
-        {
-            his_read_idx = 0;
-        }
-    }
-    else if (strcmp(sbuf, "\e[C") == 0)
-    {
-        printf("Get Right Arrow\n");
-    }
-    else if (strcmp(sbuf, "\e[D") == 0)
-    {
-        printf("Get Left Arrow\n");
-    }
-
-    if (idx > 2)
-    {
-        memset(sbuf, 0, 8);
-        idx = 0;
-    }
-    return 0;
-}
-#endif
-
+#if TERM_IO_OS == TERM_OS_OSX
 /*!@brief   Set STDIN in OSX to non-blocking mode.
- *
- * @return
+ * @retval  [0] Success
+ * @retval  [-1] Fail
  */
 int osx_initTerm()
 {
 #if TERM_IO_MODE == TERM_MODE_NONBLOCK
     struct termios new, old;
+
+    //Disable Echo function for STDIN
     int flag;
     if (tcgetattr(STDIN_FILENO, &old) == -1)
     {
-        return (1);
+        return (-1);
     }
-
     new = old;
     new.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL | ICANON);
+
+    //Set NONBLOCK mode for STDIN
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &new) == -1)
     {
         tcsetattr(STDIN_FILENO, TCSAFLUSH, &old);
-        return (1);
+        return (-1);
     }
     flag = fcntl(STDIN_FILENO, F_GETFL);
     flag |= O_NONBLOCK;
     if (fcntl(STDIN_FILENO, F_SETFL, flag) == -1)
     {
-        return (1);
+        return (-1);
     }
 
     printf("STDIN set to non-blocking mode\n>");
+#else
+    //STDIN is blocking mode by default. (Block till you press "ENTER")
 #endif
-
     return 0;
-
 }
 
 int osx_getc(FILE *fp)
@@ -103,10 +61,30 @@ int osx_getc(FILE *fp)
     return c;
 }
 
+#endif
+
+#if TERM_IO_OS == TERM_OS_STM32
+static char uartterm_rx_buf[TERM_STRING_BUF_SIZE] =
+{   0};
+
 void stm32_initTerm(char *BufPtr, int BufSize)
 {
-    //Build a ring buffer for UART RX
-    ;
+    //Step1: Link the buffer to UART RX
+    /**
+     * HAL_UART_Receive_IT(&huart2, BufPtr, BufSize);
+     */
+
+    //Step2: Link the UART Rx complete call back to Term_IO_init() to enable automatic ring buffer.
+    /**
+     * void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+     * {
+     *    if (huart == huart2)
+     *    {
+     *        Term_IO_init();
+     *    }
+     * }
+     *
+     */
 }
 
 /*!@brief Get a single char from a MCU UART buffer.
@@ -118,6 +96,7 @@ void stm32_initTerm(char *BufPtr, int BufSize)
  */
 char stm32_getc(char src_str[])
 {
+#if TERM_IO_MODE == TERM_MODE_NONBLOCK
     static int idx = 0;
     char val = src_str[idx];
 
@@ -127,9 +106,6 @@ char stm32_getc(char src_str[])
     }
     else
     {
-#if TER_LOOP_BACK_EN
-        printf("%c[%d]", val, val);   //Loop back function.
-#endif
         src_str[idx] = 0;    //Clear buf and move index to next.
         idx++;
 
@@ -141,117 +117,131 @@ char stm32_getc(char src_str[])
         }
         return (val);
     }
+#endif
+
+#if TERM_IO_MODE == TERM_MODE_BLOCK
+    char c = 0xff;
+    while(HAL_OK != HAL_UART_Receive(huart2,&c,1,10000));
+    return c;
+#endif
+
 }
+#endif
 
-int term_history_push(stTermBuf *termbuf)
+int term_history_push(stTermHandle *TermHandle, int depth)
 {
+#if TERM_HISTORY_DEPTH
+    //Copy string to history
+    strcpy(TermHandle->history[TermHandle->his_push_idx], TermHandle->string);
 
-    termbuf->his_pull_idx = termbuf->his_push_idx;
+    //Set new push/pull index, Calculate next history index.
+    TermHandle->his_pull_idx = TermHandle->his_push_idx;
+    TermHandle->his_push_idx = GET_ARRAY_INDEX(TermHandle->his_push_idx, depth, TERM_HISTORY_DEPTH);
 
-    strcpy(termbuf->history[termbuf->his_push_idx], termbuf->string);
-
-    (termbuf->his_push_idx)++;
-    if (termbuf->his_push_idx >= TERM_HISTORY_DEPTH)
-    {
-        termbuf->his_push_idx = 0;
-    }
-
+    memset(TermHandle->history[TermHandle->his_push_idx], 0, TERM_STRING_BUF_SIZE);
+#endif
     return 0;
 }
 
-int term_history_pull(stTermBuf *termbuf, int depth)
+int term_history_pull(stTermHandle *TermHandle, int depth)
 {
-    //Move pull_index
+#if TERM_HISTORY_DEPTH
+    //Caculate next pull index
+    int new_pull_idx = GET_ARRAY_INDEX(TermHandle->his_pull_idx, depth, TERM_HISTORY_DEPTH);
+
+    //Down Arrow, move before print
     if (depth > 0)
     {
-        if (termbuf->his_pull_idx <= 0)
+        //Reach the end of history, clear out string.
+        if (TermHandle->history[new_pull_idx][0] == 0)
         {
-            termbuf->his_pull_idx = TERM_HISTORY_DEPTH;
+            memset(TermHandle->string, 0, TERM_STRING_BUF_SIZE);
+            printf("%s\r>", TERM_ERASE_LINE_START);
+            return 0;
         }
-        termbuf->his_pull_idx = (termbuf->his_pull_idx) - depth;
+        //Move pull index
+        TermHandle->his_pull_idx = new_pull_idx;
     }
-    else
+
+    //Copy history info and print the new line
+    if (TermHandle->history[TermHandle->his_pull_idx][0] != 0)
     {
-        //Already last history, do nothing.
-        if (termbuf->his_pull_idx == termbuf->his_push_idx)
+        //Copy string from history
+        strcpy(TermHandle->string, TermHandle->history[TermHandle->his_pull_idx]);
+        TermHandle->index = strlen(TermHandle->string);
+
+        //Print the new string.
+        printf("%s\r>%s", TERM_ERASE_LINE_START, TermHandle->string);
+    }
+
+    //Up Arrow, print before move
+    if (depth < 0)
+    {
+        //Reach the end of history, do nothing.
+        if (TermHandle->history[new_pull_idx][0] == 0)
         {
             return 0;
         }
-
-        termbuf->his_pull_idx = (termbuf->his_pull_idx) - depth;
-        if (termbuf->his_pull_idx >= TERM_HISTORY_DEPTH)
-        {
-            termbuf->his_pull_idx = 0;
-        }
-
+        //Move to next pull index
+        TermHandle->his_pull_idx = new_pull_idx;
     }
-
-    printf("\npull[%d]push[%d]\n", termbuf->his_pull_idx, termbuf->his_push_idx);
-    printf("[0]%s\n", termbuf->history[0]);
-    printf("[1]%s\n", termbuf->history[1]);
-    printf("[2]%s\n", termbuf->history[2]);
-    printf("[3]%s\n", termbuf->history[3]);
-    printf("[4]%s\n", termbuf->history[4]);
-    printf("[5]%s\n", termbuf->history[5]);
-    printf("[6]%s\n", termbuf->history[6]);
-    printf("[7]%s\n", termbuf->history[7]);
-
-    //Show history from pull_index
-    if (termbuf->history[termbuf->his_pull_idx][0] != 0)
-    {
-        strcpy(termbuf->string, termbuf->history[termbuf->his_pull_idx]);
-        termbuf->index = strlen(termbuf->string);
-    }
-
+#endif
     return 0;
 }
 
-int term_esc_handle(char c, stTermBuf *termbuf)
+int term_esc_handle(char c, stTermHandle *TermHandle)
 {
     static char escbuf[8] =
     { 0 };
     static int escidx = 0;
 
-    if (c == '\e')
+    if (c == '\e')  //Start of ESC folow control, default length = 2
     {
-        termbuf->esc_flag = 2;
+        TermHandle->esc_flag = 2;
+    }
+    if (c == '[') //Start of a Cursor control, max length = 4, till get a letter.
+    {
+        TermHandle->esc_flag += 4;
     }
 
     escbuf[escidx++] = c;
 
     if (strcmp(escbuf, "\e[A") == 0)    //Up Arrow
     {
-        term_history_pull(termbuf, 1);
-        printf("%s\r>%s", TERM_ERASE_LINE_START, termbuf->string);
+        //Pull history previous
+        term_history_pull(TermHandle, -1);
     }
     else if (strcmp(escbuf, "\e[B") == 0) //Down Arrow
     {
-        term_history_pull(termbuf, -1);
-        printf("%s\r>%s", TERM_ERASE_LINE_START, termbuf->string);
+        //Pull next history
+        term_history_pull(TermHandle, 1);
     }
     else if (strcmp(escbuf, "\e[C") == 0)   //Right arrow
     {
-        if (termbuf->string[termbuf->index] != 0)
+
+        if (TermHandle->string[TermHandle->index] != 0)
         {
-            termbuf->index++;
+            (TermHandle->index)++;
             printf("%s", TERM_CURSOR_RIGHT);
         }
     }
     else if (strcmp(escbuf, "\e[D") == 0)   //Left arrow
     {
-        if (termbuf->index > 0)
+        if (TermHandle->index > 0)
         {
-            termbuf->index--;
+            (TermHandle->index)--;
             printf("%s", TERM_CURSOR_LEFT);
         }
-
     }
 
-    if (escidx > 2)
+    //A letter is the end of a Cursor control sequence.
+    if (((c >= 'a') && (c <= 'z')) || ((c >= 'A') && (c <= 'Z')))
     {
+        TermHandle->esc_flag = 0;
         memset(escbuf, 0, 8);
         escidx = 0;
     }
+
     return 0;
 
 }
@@ -263,7 +253,7 @@ int Term_IO_init()
 #endif
 
 #if TERM_IO_OS == TERM_OS_STM32
-    return stm32_initTerm();
+    return stm32_initTerm(uartterm_rx_buf, TERM_STRING_BUF_SIZE);
 #endif
 }
 
@@ -274,21 +264,23 @@ char Term_IO_getc(void)
 #endif
 
 #if TERM_IO_OS == TERM_OS_STM32
-    return stm32_getc();
+    return stm32_getc(uartterm_rx_buf);
 #endif
 }
 
-int Term_IO_gets(char *dest_str, stTermBuf *termbuf)
+int Term_IO_gets(char *dest_str, stTermHandle *TermHandle)
 {
     //Initialize terminal IO
     static int initflag = 1;
     if (initflag)
     {
         Term_IO_init();
+        TermHandle->loopback_enable = TERM_LOOP_BACK_EN;
         initflag = 0;
     }
 
     char c = 0;
+
     do
     {
         //Get 1 char and check
@@ -297,6 +289,7 @@ int Term_IO_gets(char *dest_str, stTermBuf *termbuf)
         //Handle characters
         switch (c)
         {
+        case '\x0':  //NULL
         case '\xff': //EOF
         {
             break;
@@ -304,51 +297,56 @@ int Term_IO_gets(char *dest_str, stTermBuf *termbuf)
         case '\x7f': //Delete
         case '\b': //Backspace
         {
-            if (termbuf->index > 0)
+            if (TermHandle->index > 0)
             {
-                termbuf->string[termbuf->index--] = 0;
+                TermHandle->string[--(TermHandle->index)] = 0;
+                printf("%s\r>%s", TERM_ERASE_LINE_START, TermHandle->string);
             }
-            printf("%s%s", TERM_CURSOR_LEFT, TERM_ERASE_LINE_END);
+
             break;
         }
         case '\e': //ESC
         {
-            term_esc_handle(c, termbuf);
+            term_esc_handle(c, TermHandle);
             break;
         }
         case CLI_LINE_END_CHAR: //End of a line
         {
             //Push to history without \'n'
-            if (termbuf->index > 0)
+            if (TermHandle->index > 0)
             {
-                term_history_push(termbuf);
+                term_history_push(TermHandle, 1);
             }
 
             //Copy out string with '\n'
-            termbuf->string[termbuf->index++] = c;
-            strcpy(dest_str, termbuf->string);
+            strcat(TermHandle->string, "\n");
+            strcpy(dest_str, TermHandle->string);
             printf("\n");
 
             //Clear buffer
-            int ret = termbuf->index;
-            memset(termbuf->string, 0, TERM_STRING_BUF_SIZE);
-            termbuf->index = 0;
+            int ret = strlen(TermHandle->string);
+            memset(TermHandle->string, 0, TERM_STRING_BUF_SIZE);
+            TermHandle->index = 0;
 
             return ret; //return copy data count
         }
         default:
         {
-            if (termbuf->esc_flag > 0)
+            //The letters after a ESC is terminal control characters
+            if (TermHandle->esc_flag > 0)
             {
-                term_esc_handle(c, termbuf);
-                termbuf->esc_flag--;
+                term_esc_handle(c, TermHandle);
+                TermHandle->esc_flag--;
             }
             else
             {
                 //Buffer 1 byte
-                termbuf->string[termbuf->index++] = c;
+                TermHandle->string[TermHandle->index++] = c;
                 //Loop Back function
-                printf("%c", c);
+                if (TermHandle->loopback_enable)
+                {
+                    printf("%c", c);
+                }
             }
             break;
         }

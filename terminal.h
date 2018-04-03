@@ -10,9 +10,7 @@
 #define TERMINAL_H_
 
 #include "cli.h"
-
-#define TERM_STRING_BUF_SIZE         256     //!< Terminal input string buffer size.
-#define TERM_LOOP_BACK_EN            1       //!< Enable loop back function for terminal.
+#include "term_io.h"
 
 /*! ANSI escape code
  *  Terminal flow control with ANSI escape code.

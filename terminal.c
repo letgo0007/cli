@@ -12,8 +12,8 @@
 #include "string.h"
 #include "sys/time.h"
 
-#include "term_io.h"
 #include "cli.h"
+#include "term_io.h"
 #include "terminal.h"
 
 /*!@brief A simple example of handling un-used args. Just print them.
@@ -133,7 +133,7 @@ stCliCommand MainCmd_V1[] =
 
 int Terminal_gets(char *string)
 {
-    return Term_IO_gets(string, &TermBuf);
+    return Term_IO_gets(string, &gTermHandle);
 }
 
 /* Example of a Mini-Terminal */
@@ -147,7 +147,7 @@ int Terminal_run(stCliCommand cmdlist[])
     scount = Terminal_gets(sbuf);
     if (scount > 1)
     {
-        char *argbuf[16] =
+        char *argbuf[TERM_TOKEN_AMOUNT] =
         { 0 };
         int argcount = 0;
         CLI_convertStrToArgs(sbuf, &argcount, argbuf);

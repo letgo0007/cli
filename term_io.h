@@ -17,23 +17,28 @@
 #define TERM_IO_MODE                TERM_MODE_NONBLOCK
 #define TERM_IO_OS                  TERM_OS_OSX
 
-#define TERM_STRING_BUF_SIZE        256
-#define TERM_HISTORY_DEPTH          8
+#define TERM_STRING_BUF_SIZE        128     //!< Maximum terminal command string length.
+#define TERM_TOKEN_AMOUNT           16      //!< Maximum tokens in a command.
+#define TERM_HISTORY_DEPTH          8       //!< History depth.
+#define TERM_LOOP_BACK_EN           1       //!< Enable loop back function for terminal.
 
 typedef struct stTermBuf
 {
-    char string[TERM_STRING_BUF_SIZE];
-    int index;
-    char history[TERM_HISTORY_DEPTH][TERM_STRING_BUF_SIZE];
-    int his_push_idx;
-    int his_pull_idx;
-    int esc_flag;
+    char string[TERM_STRING_BUF_SIZE];      //!< Command string buffer
+    int index;                              //!< Command string w/r index
+    int esc_flag;                           //!< Flags to handle ANSI ESC sequence (up/down/left/right)
+    _Bool loopback_enable;                  //!< Enable Loopback function for terminal
+#if TERM_HISTORY_DEPTH
+    char history[TERM_HISTORY_DEPTH][TERM_STRING_BUF_SIZE]; //!< Buffer to store history command
+    int his_push_idx;                       //!< History push index
+    int his_pull_idx;                       //!< History pull index
+#endif
+} stTermHandle;
 
-} stTermBuf;
-
-extern stTermBuf TermBuf;
+extern stTermHandle gTermHandle;
 
 int Term_IO_init(void);
-int Term_IO_gets(char *string, stTermBuf *termbuf);
+char Term_IO_getc(void);
+int Term_IO_gets(char *string, stTermHandle *TermHandle);
 
 #endif /* TERM_IO_H_ */
