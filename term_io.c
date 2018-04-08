@@ -48,7 +48,7 @@ int osx_initTerm()
         return (-1);
     }
 
-    printf("STDIN set to non-blocking mode\n>");
+    printf("STDIN set to non-blocking mode\n%s", TERM_PROMPT_CHAR);
 #else
     //STDIN is blocking mode by default. (Block till you press "ENTER")
 #endif
@@ -156,7 +156,7 @@ int term_history_pull(stTermHandle *TermHandle, int depth)
         if (TermHandle->history[new_pull_idx][0] == 0)
         {
             memset(TermHandle->string, 0, TERM_STRING_BUF_SIZE);
-            printf("%s\r>", TERM_ERASE_LINE_START);
+            printf("%s\r%s", TERM_ERASE_LINE_START, TERM_PROMPT_CHAR);
             return 0;
         }
         //Move pull index
@@ -171,7 +171,7 @@ int term_history_pull(stTermHandle *TermHandle, int depth)
         TermHandle->index = strlen(TermHandle->string);
 
         //Print the new string.
-        printf("%s\r>%s", TERM_ERASE_LINE_START, TermHandle->string);
+        printf("%s\r%s%s", TERM_ERASE_LINE_START, TERM_PROMPT_CHAR, TermHandle->string);
     }
 
     //Up Arrow, print before move
@@ -246,6 +246,56 @@ int term_esc_handle(char c, stTermHandle *TermHandle)
 
 }
 
+/*!@brief Insert a char into a string at certain position.
+ *
+ * @param string
+ * @param c
+ * @param idx
+ */
+int term_insert(char *string, char c, int idx)
+{
+    int len = strlen(string);
+
+    if (idx > len)
+    {
+        //can't insert if index out of range.
+        return -1;
+    }
+
+    //right shift buffer from index to end
+    int i = 0;
+    for (i = len; i > idx; i--)
+    {
+        string[i] = string[i - 1];
+    }
+
+    //insert value
+    string[idx] = c;
+
+    return 0;
+}
+
+int term_delete(char *string, int idx)
+{
+    int len = strlen(string);
+
+    if (idx > len)
+    {
+        //can't insert if index out of range.
+        return -1;
+    }
+
+    //left shift buffer from index to end
+    int i = 0;
+    for (i = idx; i < len + 1; i++)
+    {
+        string[i - 1] = string[i];
+    }
+
+    return 0;
+
+}
+
 int Term_IO_init()
 {
 #if TERM_IO_OS == TERM_OS_OSX
@@ -294,20 +344,25 @@ int Term_IO_gets(char *dest_str, stTermHandle *TermHandle)
         {
             break;
         }
+        case '\e': //ESC
+        {
+            term_esc_handle(c, TermHandle);
+            break;
+        }
         case '\x7f': //Delete
         case '\b': //Backspace
         {
             if (TermHandle->index > 0)
             {
-                TermHandle->string[--(TermHandle->index)] = 0;
-                printf("%s\r>%s", TERM_ERASE_LINE_START, TermHandle->string);
+                //Delete 1 byte from buffer.
+                term_delete(TermHandle->string, TermHandle->index);
+                //Erase terminal line and print new buffer string.
+                printf("%s\r%s%s", TERM_ERASE_LINE, TERM_PROMPT_CHAR, TermHandle->string);
+                //Move cursor
+                printf("\e[%luG", TermHandle->index + strlen(TERM_PROMPT_CHAR));
+                TermHandle->index--;
             }
 
-            break;
-        }
-        case '\e': //ESC
-        {
-            term_esc_handle(c, TermHandle);
             break;
         }
         case CLI_LINE_END_CHAR: //End of a line
@@ -340,12 +395,25 @@ int Term_IO_gets(char *dest_str, stTermHandle *TermHandle)
             }
             else
             {
-                //Buffer 1 byte
-                TermHandle->string[TermHandle->index++] = c;
+                //Insert 1 byte to buffer
+                term_insert(TermHandle->string, c, TermHandle->index++);
+
                 //Loop Back function
                 if (TermHandle->loopback_enable)
                 {
-                    printf("%c", c);
+                    if (TermHandle->string[TermHandle->index] == 0)
+                    {
+                        //Loop back 1 byte if it's the end of a line.
+                        printf("%c", c);
+                    }
+                    else
+                    {
+                        //Erase entire line and print new buffer content
+                        printf("%s\r%s%s", TERM_ERASE_LINE, TERM_PROMPT_CHAR, TermHandle->string);
+                        //Move cursor
+                        printf("\e[%luG", TermHandle->index + strlen(TERM_PROMPT_CHAR) + 1);
+                    }
+
                 }
             }
             break;

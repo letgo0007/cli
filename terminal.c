@@ -88,9 +88,15 @@ int Command_test(int argc, char *args[])
  */
 int Command_time(int argc, char *args[])
 {
-    time_t tm;
-    time(&tm);                              //Get unix time stamp
-    printf("%s", asctime(gmtime(&tm)));     //Convert time stamp to a print format.
+    time_t timer;
+    struct tm *tblock;
+    timer = time(NULL);
+    tblock = localtime(&timer);
+
+    char buf[32];
+
+    strftime(buf, sizeof(buf), "[%Y-%m-%d-%H:%M:%S]", tblock);
+    printf("%s", buf);
     return 0;
 }
 
@@ -131,6 +137,27 @@ stCliCommand MainCmd_V1[] =
 { "echo", Command_echo, "Echo back command" },
 { NULL, NULL } };
 
+/*!@brief return Terminal prompt string.
+ * @return
+ */
+char *Terminal_prompt(void)
+{
+#if 1
+    time_t timer;
+    struct tm *tblock;
+    timer = time(NULL);
+    tblock = localtime(&timer);
+    static char buf[32];
+
+    strftime(buf, sizeof(buf), "[%H:%M:%S]", tblock);
+    return buf;
+#else
+    static char buf[2] = ">";
+    return buf;
+#endif
+
+}
+
 int Terminal_gets(char *string)
 {
     return Term_IO_gets(string, &gTermHandle);
@@ -155,11 +182,11 @@ int Terminal_run(stCliCommand cmdlist[])
         memset(sbuf, 0, scount);
         memset(argbuf, 0, sizeof(char*) * argcount);
         argcount = 0;
-        printf(">");
+        printf("%s", TERM_PROMPT_CHAR);
     }
     else if (scount == 1)
     {
-        printf(">");
+        printf("%s", TERM_PROMPT_CHAR);
     }
 
     return 0;

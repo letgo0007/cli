@@ -23,10 +23,13 @@
 #define TERM_CURSOR_LEFT            "\e[D"
 #define TERM_CURSOR_NEXT_LINE       "\e[E"
 #define TERM_CURSOR_PREVIOUS_LINE   "\e[F"
+#define TERM_CURSOR_SAVE_POSITION   "\e[s"
+#define TERM_CURSOR_RESTORE_POSITION "\e[u"
 
 #define TERM_ERASE_DISPLAY          "\e[J"
 #define TERM_ERASE_LINE_START       "\e[1K"
 #define TERM_ERASE_LINE_END         "\e[K"
+#define TERM_ERASE_LINE             "\e[2K"
 
 #define TERM_RESET                  "\e[0m"
 #define TERM_BOLD                   "\e[1m"
@@ -40,7 +43,12 @@
 #define TERM_YELLOW                 "\e[33m"
 #define TERM_BLUE                   "\e[34m"
 
+#define TERM_PROMPT_CHAR            Terminal_prompt()
+#define TERM_PROMPT_LEN             strlen(TERM_PROMPT_CHAR)
+
 extern stCliCommand MainCmd_V1[];
+
+char *Terminal_prompt(void);
 
 int Terminal_run(stCliCommand cmdlist[]);
 
