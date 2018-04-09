@@ -158,7 +158,7 @@ stCliCommand MainCmd_V1[] =
  */
 char *Terminal_prompt(void)
 {
-#if 1
+#if 0
     time_t timer;
     struct tm *tblock;
     timer = time(NULL);
