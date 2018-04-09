@@ -10,7 +10,6 @@
 #include <termios.h>
 #endif
 
-#define GET_ARRAY_INDEX(old_idx, move, size)        (((unsigned int)old_idx + move) % (unsigned int)size)
 
 stTermHandle gTermHandle =
 {
@@ -128,6 +127,20 @@ char stm32_getc(char src_str[])
 }
 #endif
 
+int get_array_index( old_idx, move, size)
+{
+    int new_idx = old_idx + move;
+    if (new_idx < 0)
+    {
+        new_idx = size - 1;
+    }
+    else if (new_idx >= size)
+    {
+        new_idx = 0;
+    }
+    return new_idx;
+}
+
 int term_history_push(stTermHandle *TermHandle, int depth)
 {
 #if TERM_HISTORY_DEPTH
@@ -136,7 +149,7 @@ int term_history_push(stTermHandle *TermHandle, int depth)
 
     //Set new push/pull index, Calculate next history index.
     TermHandle->his_pull_idx = TermHandle->his_push_idx;
-    TermHandle->his_push_idx = GET_ARRAY_INDEX(TermHandle->his_push_idx, depth, TERM_HISTORY_DEPTH);
+    TermHandle->his_push_idx = get_array_index(TermHandle->his_push_idx, depth, TERM_HISTORY_DEPTH);
 
     memset(TermHandle->history[TermHandle->his_push_idx], 0, TERM_STRING_BUF_SIZE);
 #endif
@@ -146,37 +159,23 @@ int term_history_push(stTermHandle *TermHandle, int depth)
 int term_history_pull(stTermHandle *TermHandle, int depth)
 {
 #if TERM_HISTORY_DEPTH
-    //Caculate next pull index
-    int new_pull_idx = GET_ARRAY_INDEX(TermHandle->his_pull_idx, depth, TERM_HISTORY_DEPTH);
+    //Calculate next pull index
+    int new_pull_idx = get_array_index(TermHandle->his_pull_idx, depth, TERM_HISTORY_DEPTH);
 
-    //Down Arrow, move before print
-    if (depth > 0)
-    {
-        //Reach the end of history, clear out string.
-        if (TermHandle->history[new_pull_idx][0] == 0)
-        {
-            memset(TermHandle->string, 0, TERM_STRING_BUF_SIZE);
-            printf("%s\r%s", TERM_ERASE_LINE_START, TERM_PROMPT_CHAR);
-            return 0;
-        }
-        //Move pull index
-        TermHandle->his_pull_idx = new_pull_idx;
-    }
-
-    //Copy history info and print the new line
-    if (TermHandle->history[TermHandle->his_pull_idx][0] != 0)
-    {
-        //Copy string from history
-        strcpy(TermHandle->string, TermHandle->history[TermHandle->his_pull_idx]);
-        TermHandle->index = strlen(TermHandle->string);
-
-        //Print the new string.
-        printf("%s\r%s%s", TERM_ERASE_LINE_START, TERM_PROMPT_CHAR, TermHandle->string);
-    }
-
-    //Up Arrow, print before move
+    //**Up Arrow**, Print & Move
     if (depth < 0)
     {
+        //Copy history info and print the new line
+        if (TermHandle->history[TermHandle->his_pull_idx][0] != 0)
+        {
+            //Copy string from history
+            strcpy(TermHandle->string, TermHandle->history[TermHandle->his_pull_idx]);
+            TermHandle->index = strlen(TermHandle->string);
+
+            //Print the new string.
+            printf("%s\r%s%s", TERM_ERASE_LINE, TERM_PROMPT_CHAR, TermHandle->string);
+        }
+
         //Reach the end of history, do nothing.
         if (TermHandle->history[new_pull_idx][0] == 0)
         {
@@ -184,6 +183,31 @@ int term_history_pull(stTermHandle *TermHandle, int depth)
         }
         //Move to next pull index
         TermHandle->his_pull_idx = new_pull_idx;
+    }
+    //**Down Arrow**, Move and print
+    else if (depth > 0)
+    {
+        //Reach the end of history, clear out string.
+        if (TermHandle->history[new_pull_idx][0] == 0)
+        {
+            memset(TermHandle->string, 0, TERM_STRING_BUF_SIZE);
+            TermHandle->index = 0;
+            printf("%s\r%s", TERM_ERASE_LINE, TERM_PROMPT_CHAR);
+            return 0;
+        }
+        //Move pull index
+        TermHandle->his_pull_idx = new_pull_idx;
+
+        //Copy history info and print the new line
+        if (TermHandle->history[TermHandle->his_pull_idx][0] != 0)
+        {
+            //Copy string from history
+            strcpy(TermHandle->string, TermHandle->history[TermHandle->his_pull_idx]);
+            TermHandle->index = strlen(TermHandle->string);
+
+            //Print the new string.
+            printf("%s\r%s%s", TERM_ERASE_LINE, TERM_PROMPT_CHAR, TermHandle->string);
+        }
     }
 #endif
     return 0;
@@ -208,7 +232,7 @@ int term_esc_handle(char c, stTermHandle *TermHandle)
 
     if (strcmp(escbuf, "\e[A") == 0)    //Up Arrow
     {
-        //Pull history previous
+        //Pull previous history
         term_history_pull(TermHandle, -1);
     }
     else if (strcmp(escbuf, "\e[B") == 0) //Down Arrow

@@ -125,6 +125,21 @@ int Command_echo(int argc, char *args[])
     return 0;
 }
 
+int Command_history(int argc, char *args[])
+{
+    int i = 0;
+
+    printf("Command History:\n[Index][Command]\n");
+    for (i = 0; i < TERM_HISTORY_DEPTH; i++)
+    {
+        printf("[%5d][%s]%s%s\n", i,                                // History index
+                gTermHandle.history[i],                             // History string
+                (i == gTermHandle.his_push_idx) ? "<-Push" : "",    // Push index
+                (i == gTermHandle.his_pull_idx) ? "<-Pull" : "");   // Pull index
+    }
+    return 0;
+}
+
 /*!@brief Build the command list.
  *
  */
@@ -135,6 +150,7 @@ stCliCommand MainCmd_V1[] =
 { "quit", Command_quit, "Quit the process" },
 { "version", Command_ver, "Show Command version" },
 { "echo", Command_echo, "Echo back command" },
+{ "history", Command_history, "Show command history" },
 { NULL, NULL } };
 
 /*!@brief return Terminal prompt string.

@@ -138,7 +138,8 @@ int cli_getData(char *string, void *data_ptr, OPT_TYPE type)
     {
         if (CLI_FAILURE == cli_getInt(string, (int*) data_ptr))
         {
-            goto error;
+            CLI_ERROR("ERROR: Invalid data, required type = [int], input = [%s]!\n", data_ptr);
+            return 0;
         }
         return 1;
         break;
@@ -171,7 +172,7 @@ int cli_getData(char *string, void *data_ptr, OPT_TYPE type)
     }
     default:
     {
-        error: CLI_ERROR("ERROR:Invalid data args of [%s]\n", string);
+        CLI_ERROR("ERROR: Invalid data type of [%d]\n", type);
         break;
     }
     }
@@ -367,7 +368,7 @@ int CLI_parseArgs(int argc, char *args[], stCliOption options[])
     //There's no defined call back at OPT_END, will pass back the unused args.
     for (i = 0; i < unused_argc; i++)
     {
-        args[i] = unused_args[i];
+        //args[i] = unused_args[i];
     }
     return unused_argc;
 }
