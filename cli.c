@@ -262,26 +262,53 @@ int cli_handleShortOpt(char *arg_name, char *arg_data, stCliOption options[])
  * @param args      Arguments string Output, e.g. "This" "is" "a" "help"
  * @return  CLI_SUCEESS or CLI_FAILURE of the process.
  */
-CLI_RET CLI_convertStrToArgs(char *string, int *argc, char *args[])
+CLI_RET CLI_StrToArgs(char *string, int *argc, char *args[])
 {
     CHECK_NULL_PTR(string);
     CHECK_NULL_PTR(argc);
     CHECK_NULL_PTR(args);
 
-    char *token = NULL;
+    int args_idx = 0;
     int i = 0;
+    int len = strlen(string);
+    char quote_flag = 0;    //In quote mark""
+    char str_flag=0;        //In str
 
-    //Get all the tokens from string.
-    token = strtok(string, CLI_WHITE_SPACE_CHAR);
-    while (token != NULL)
+    for (i = 0; i < len; i++)
     {
-        args[i++] = token;
-        token = strtok(NULL, CLI_WHITE_SPACE_CHAR);
+        switch (string[i])
+        {
+        case '\t':
+        case ' ':
+        case '\r':
+        case '\n':
+        {
+            if(quote_flag == 0)
+            {
+                string[i] = 0;
+                str_flag = 0;
+            }
+            break;
+        }
+        case '"':
+        {
+            quote_flag = !quote_flag;
+            string[i] = 0;
+            break;
+        }
+        default:
+        {
+            if(str_flag == 0)
+            {
+                args[args_idx++] = &string[i];
+            }
+            str_flag = 1;
+            break;
+        }
+        }
     }
 
-    //return args count
-    *argc = i;
-
+    *argc = args_idx;
     return CLI_SUCCESS;
 }
 

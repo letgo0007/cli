@@ -10,7 +10,9 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "string.h"
-#include "sys/time.h"
+#include <sys/time.h>
+#include <sys/timeb.h>
+#include "unistd.h"
 
 #include "cli.h"
 #include "term_io.h"
@@ -84,9 +86,67 @@ int Command_test(int argc, char *args[])
     return 0;
 }
 
+int Command_sleep(int argc, char *args[])
+{
+    float sec = strtof(args[0], NULL);
+    usleep(1000000 * sec);
+    return 0;
+}
+
+int Command_repeat(int argc, char *args[])
+{
+    int count = strtol(args[0], NULL, 0);
+    int i = 0;
+
+    for (i = 0; i < count; i++)
+    {
+        char cmd_buf[TERM_STRING_BUF_SIZE] =
+        { 0 };
+        char *argbuf[TERM_TOKEN_AMOUNT] =
+        { 0 };
+        int argcount = 0;
+
+        strcpy(cmd_buf, args[1]);
+
+        printf("%sRepeat [%d/%d] of [%s]\n%s", TERM_BOLD, i + 1, count, cmd_buf, TERM_RESET);
+        CLI_StrToArgs(cmd_buf, &argcount, argbuf);
+        CLI_excuteCommand(argcount, argbuf, MainCmd_V1);
+    }
+
+    return 0;
+}
+
+int Command_time(int argc, char *args[])
+{
+    struct timeb t_start;
+    struct timeb t_end;
+
+    //Get start/stop time stampe and run the command.
+    ftime(&t_start);
+    int ret = CLI_excuteCommand(argc, args, MainCmd_V1);
+    ftime(&t_end);
+
+    int dif_ms;
+    int dif_s;
+
+    if (t_end.millitm >= t_start.millitm)
+    {
+        dif_ms = t_end.millitm - t_start.millitm;
+        dif_s = t_end.time - t_start.time;
+    }
+    else
+    {
+        dif_ms = t_end.millitm - t_start.millitm + 1000;
+        dif_s = t_end.time - t_start.time - 1;
+    }
+
+    printf("time: %d.%03d s\n", dif_s, dif_ms);
+    return ret;
+}
+
 /*!@brief Handler for command "time". Print Unix time stamp.
  */
-int Command_time(int argc, char *args[])
+int Command_date(int argc, char *args[])
 {
     time_t timer;
     struct tm *tblock;
@@ -95,7 +155,7 @@ int Command_time(int argc, char *args[])
 
     char buf[32];
 
-    strftime(buf, sizeof(buf), "[%Y-%m-%d-%H:%M:%S]", tblock);
+    strftime(buf, sizeof(buf), "%Y/%m/%d %H:%M:%S", tblock);
     printf("%s", buf);
     return 0;
 }
@@ -118,10 +178,16 @@ int Command_quit(int argc, char *args[])
 int Command_echo(int argc, char *args[])
 {
     int i = 0;
+    char strbuf[256] =
+    { 0 };
+
     while (argc--)
     {
-        printf("%s ", args[i++]);
+        strcat(strbuf, args[i++]);
+        strcat(strbuf, " ");
     }
+    strcat(strbuf, "\n");
+    printf("%s", strbuf);
     return 0;
 }
 
@@ -146,7 +212,10 @@ int Command_history(int argc, char *args[])
 stCliCommand MainCmd_V1[] =
 {
 { "test", Command_test, "Run a argument parse example." },
-{ "time", Command_time, "Get current time stamp" },
+{ "time", Command_time, "Get the execute time of a command." },
+{ "sleep", Command_sleep, "Sleep process, unit in second." },
+{ "repeat", Command_repeat, "Repeat run a command." },
+{ "date", Command_date, "Get current time stamp" },
 { "quit", Command_quit, "Quit the process" },
 { "version", Command_ver, "Show Command version" },
 { "echo", Command_echo, "Echo back command" },
@@ -193,7 +262,7 @@ int Terminal_run(stCliCommand cmdlist[])
         char *argbuf[TERM_TOKEN_AMOUNT] =
         { 0 };
         int argcount = 0;
-        CLI_convertStrToArgs(sbuf, &argcount, argbuf);
+        CLI_StrToArgs(sbuf, &argcount, argbuf);
         CLI_excuteCommand(argcount, argbuf, cmdlist);
         memset(sbuf, 0, scount);
         memset(argbuf, 0, sizeof(char*) * argcount);
