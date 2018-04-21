@@ -60,7 +60,7 @@ int Command_test(int argc, char *args[])
     //It's Recommended to build a temperory struct to store result.
     struct DataStruct
     {
-        int IntData;
+        int IntData[16];
         char StringData[TERM_STRING_BUF_SIZE];
         _Bool BoolData;
     } Tempdata;
@@ -70,18 +70,19 @@ int Command_test(int argc, char *args[])
     //Build the option list for main
     stCliOption MainOpt[] =
     {
-    { OPT_COMMENT, 0, NULL, "Basic Options", NULL },
-    { OPT_HELP, 'h', "help", "Show help hints", NULL },
-    { OPT_INT, 'i', "int", "Get a Integer value", (void*) &Tempdata.IntData },
-    { OPT_STRING, 's', "string", "Get a String value", (void*) Tempdata.StringData },
-    { OPT_BOOL, 'b', "bool", "Get a Boolean value", (void*) &Tempdata.BoolData },
+    { OPT_COMMENT, 0, NULL, "Basic Options", NULL, NULL, 0 },
+    { OPT_HELP, 'h', "help", "Show help hints", NULL, NULL, 0 },
+    { OPT_INT, 'i', "int", "Get a Integer value", (void*) Tempdata.IntData, NULL, 16 },
+    { OPT_STRING, 's', "string", "Get a String value", (void*) Tempdata.StringData, NULL, 0 },
+    { OPT_BOOL, 'b', "bool", "Get a Boolean value", (void*) &Tempdata.BoolData, NULL, 0 },
     { OPT_END, 0, NULL, NULL, NULL, print_args } };
 
     //Run Arguments parse using MainOpt
     CLI_parseArgs(argc, args, MainOpt);
 
     //Print Result
-    printf("\nResult: Int[%d] String[%s] Bool[%d]\n", Tempdata.IntData, Tempdata.StringData, Tempdata.BoolData);
+    printf("\nResult: Int[%d][%d] String[%s] Bool[%d]\n", Tempdata.IntData[0], Tempdata.IntData[1], Tempdata.StringData,
+            Tempdata.BoolData);
 
     return 0;
 }

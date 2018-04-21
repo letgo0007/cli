@@ -68,25 +68,6 @@ CLI_RET cli_getInt(char *string, int *data_ptr)
     return CLI_SUCCESS;
 }
 
-//Get Multiple integer value from a list of text.
-int cli_getMultiInt(char *string[], void *data_ptr, int count)
-{
-    CHECK_NULL_PTR(string);
-    CHECK_NULL_PTR(data_ptr);
-
-    int i;
-    int *d = (int*) data_ptr;
-
-    //Loop convert integer data.
-    for (i = 0; i < count; i++)
-    {
-        CHECK_FUNC_EXIT(cli_getInt(string[i], d++));
-    }
-
-    //Return with actual data converted.
-    exit: return i;
-}
-
 /*!@brief Print option list with help text.
  *
  * @param options   Option list
@@ -130,37 +111,47 @@ CLI_RET cli_printCommandHelp(stCliCommand commands[])
  * @param type      Data convert type
  * @return          The number of data_ptr used.
  */
-int cli_getData(char *string, void *data_ptr, OPT_TYPE type)
+int cli_getData(int argc, char *argv[], stCliOption option)
 {
-    switch (type)
+    switch (option.OptType)
     {
     case OPT_INT:
     {
-        if (CLI_FAILURE == cli_getInt(string, (int*) data_ptr))
+        int i = 0;
+        int *d = (int *) option.ValuePtr;
+        for (i = 0; i < argc; i++)
         {
-            CLI_ERROR("ERROR: Invalid data, required type = [int], input = [%s]!\n", data_ptr);
-            return 0;
+            if ((argv[i][0] == '-') || (option.ValueCount == 0))
+            {
+                return i;
+            }
+            if (CLI_FAILURE == cli_getInt(argv[i], d++))
+            {
+                CLI_ERROR("ERROR: Can't get integer value from [%s]\n", argv[i]);
+                return -1;
+            }
+            option.ValueCount--;
         }
-        return 1;
-        break;
+
+        return i;
     }
     case OPT_STRING:
     {
-        if (string == NULL)
+        if (argv[0] == NULL)
         {
             CLI_ERROR("ERROR: NULL data for type String!\n");
             return 0;
         }
 
-        char *d = (char*) data_ptr; //Convert pointer type to char *
+        char *d = (char*) option.ValuePtr; //Convert pointer type to char *
 
-        strcpy(d++, string);
+        strcpy(d++, argv[0]);
 
         return 1;                   //Convert 1x data string for String type
     }
     case OPT_BOOL:
     {
-        _Bool *d = (_Bool*) data_ptr;
+        _Bool *d = (_Bool*) option.ValuePtr;
         *d = 1;
 
         return 0;                   //No data needed for Boolean type
@@ -172,7 +163,7 @@ int cli_getData(char *string, void *data_ptr, OPT_TYPE type)
     }
     default:
     {
-        CLI_ERROR("ERROR: Invalid data type of [%d]\n", type);
+        CLI_ERROR("ERROR: Invalid data type of [%d]\n", option.OptType);
         break;
     }
     }
@@ -186,65 +177,48 @@ int cli_getData(char *string, void *data_ptr, OPT_TYPE type)
  * @param options       option list.
  * @return
  */
-int cli_handleLongOpt(char *arg_name, char *arg_data, stCliOption options[])
+int cli_handleOpt(int argc, char *argv[], stCliOption options[])
 {
     int i = 0;
     int c = 0;
 
     while (options[i].OptType != OPT_END)
     {
-        if (options[i].LongName != NULL)
+        if (argv[0][1] == '-') //Long option
         {
-            // Compare arg_name with text except of "--"
-            if (strcmp(&arg_name[2], options[i].LongName) == 0)
+            if (options[i].LongName != NULL)
             {
-                // Special type
-                if (options[i].OptType == OPT_HELP)
+                if (strcmp(&argv[0][2], options[i].LongName) == 0)
                 {
-                    cli_printOptionHelp(options);
-                    return 0;
+                    break;
                 }
-
-                // Convert arg_data
-                c = cli_getData(arg_data, options[i].ValuePtr, options[i].OptType);
-                return c;
+            }
+        }
+        else //Short option
+        {
+            if (options[i].ShortName != 0)
+            {
+                if (argv[0][1] == options[i].ShortName)
+                {
+                    break;
+                }
             }
         }
         i++;
     }
 
-    CLI_ERROR("ERROR: Unknown Long Option [%s]\n", arg_name);
-    return 0;
-}
-
-int cli_handleShortOpt(char *arg_name, char *arg_data, stCliOption options[])
-{
-    int i = 0;
-    int c = 0;
-
-    while (options[i].OptType != OPT_END)
+    // Special type
+    if (options[i].OptType == OPT_HELP)
     {
-        if (options[i].ShortName != 0)
-        {
-            // Compare arg_name with text except of "-"
-            if (arg_name[1] == options[i].ShortName)
-            {
-                // Special type
-                if (options[i].OptType == OPT_HELP)
-                {
-                    cli_printOptionHelp(options);
-                    return 0;
-                }
-
-                // Convert arg_data
-                c = cli_getData(arg_data, options[i].ValuePtr, options[i].OptType);
-                return c;
-            }
-        }
-        i++;
+        cli_printOptionHelp(options);
+        return 0;
     }
 
-    CLI_ERROR("ERROR: Unknown Short Option [-%c]\n", arg_name[1]);
+    // Convert arg_data
+    c = cli_getData(--argc, ++argv, options[i]);
+    return c;
+
+    CLI_ERROR("ERROR: Unknown Option [%s]\n", argv[0]);
     return 0;
 }
 
@@ -272,7 +246,7 @@ CLI_RET CLI_StrToArgs(char *string, int *argc, char *args[])
     int i = 0;
     int len = strlen(string);
     char quote_flag = 0;    //In quote mark""
-    char str_flag=0;        //In str
+    char str_flag = 0;        //In str
 
     for (i = 0; i < len; i++)
     {
@@ -283,7 +257,7 @@ CLI_RET CLI_StrToArgs(char *string, int *argc, char *args[])
         case '\r':
         case '\n':
         {
-            if(quote_flag == 0)
+            if (quote_flag == 0)
             {
                 string[i] = 0;
                 str_flag = 0;
@@ -298,7 +272,7 @@ CLI_RET CLI_StrToArgs(char *string, int *argc, char *args[])
         }
         default:
         {
-            if(str_flag == 0)
+            if (str_flag == 0)
             {
                 args[args_idx++] = &string[i];
             }
@@ -364,22 +338,18 @@ int CLI_parseArgs(int argc, char *args[], stCliOption options[])
     {
         if (args[i][0] == '-')
         {
-            if (args[i][1] == '-')
+            int ret = cli_handleOpt(argc - i, &args[i], options);
+            if (ret < 0)
             {
-
-                i += cli_handleLongOpt(args[i], args[i + 1], options);
+                CLI_ERROR("ERROR: Failed to handle option [%s]\n", args[i]);
+                return ret;
             }
-            else
-            {
-
-                i += cli_handleShortOpt(args[i], args[i + 1], options);
-            }
+            i += ret;
         }
         else
         {
             //Store un-used args.
-            unused_args[unused_argc] = args[i];
-            unused_argc++;
+            unused_args[unused_argc++] = args[i];
         }
     }
 
