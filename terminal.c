@@ -70,11 +70,11 @@ int Command_test(int argc, char *args[])
     //Build the option list for main
     stCliOption MainOpt[] =
     {
-    { OPT_COMMENT, 0, NULL, "Basic Options", NULL, NULL, 0 },
-    { OPT_HELP, 'h', "help", "Show help hints", NULL, NULL, 0 },
-    { OPT_INT, 'i', "int", "Get a Integer value", (void*) Tempdata.IntData, NULL, 16 },
-    { OPT_STRING, 's', "string", "Get a String value", (void*) Tempdata.StringData, NULL, 0 },
-    { OPT_BOOL, 'b', "bool", "Get a Boolean value", (void*) &Tempdata.BoolData, NULL, 0 },
+    { OPT_COMMENT, 0, NULL, "Basic Options" },
+    { OPT_HELP, 'h', "help", "Show help hints" },
+    { OPT_INT, 'i', "int", "Get a Integer value", (void*) Tempdata.IntData, NULL, 0, 16 },
+    { OPT_STRING, 's', "string", "Get a String value", (void*) Tempdata.StringData, NULL },
+    { OPT_BOOL, 'b', "bool", "Get a Boolean value", (void*) &Tempdata.BoolData, NULL },
     { OPT_END, 0, NULL, NULL, NULL, print_args } };
 
     //Run Arguments parse using MainOpt

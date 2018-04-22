@@ -60,7 +60,8 @@ typedef struct stCliOption
     const char *HelpText;       //!< Option help text, e.g. "Run the test"
     void *ValuePtr;             //!< Pointer to store option value
     CliCallBack *CallBack;      //!< Function call back
-    int ValueCount;             //!< Data amount for multiple data options
+    int ValueCountMin;          //!< Minimum data amount needed for this option
+    int ValueCountMax;          //!< Maximum data amount needed for this option
 } stCliOption;
 
 //!@typedef stCliCommand

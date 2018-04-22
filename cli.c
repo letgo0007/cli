@@ -104,12 +104,12 @@ CLI_RET cli_printCommandHelp(stCliCommand commands[])
     return CLI_SUCCESS;
 }
 
-/*!@brief Convert to text string to value.
+/*!@brief Get data from according to an option
  *
- * @param string    Text string, e.g. "0x123"
- * @param data_ptr  Pointer to store the data
- * @param type      Data convert type
- * @return          The number of data_ptr used.
+ * @param argc  Arguments count
+ * @param argv  Arguments vector
+ * @param option Option to handle the data
+ * @return
  */
 int cli_getData(int argc, char *argv[], stCliOption option)
 {
@@ -117,23 +117,31 @@ int cli_getData(int argc, char *argv[], stCliOption option)
     {
     case OPT_INT:
     {
-        int i = 0;
+        int arg_idx = 0;
+        int data_idx = 0;
         int *d = (int *) option.ValuePtr;
-        for (i = 0; i < argc; i++)
+
+        for (arg_idx = 0; arg_idx < argc; arg_idx++)
         {
-            if ((argv[i][0] == '-') || (option.ValueCount == 0))
+            if ((argv[arg_idx][0] == '-') || (data_idx >= option.ValueCountMax))
             {
-                return i;
+                break;
             }
-            if (CLI_FAILURE == cli_getInt(argv[i], d++))
+            if (CLI_FAILURE == cli_getInt(argv[arg_idx], d++))
             {
-                CLI_ERROR("ERROR: Can't get integer value from [%s]\n", argv[i]);
+                CLI_ERROR("ERROR: Can't get integer value from [%s]\n", argv[arg_idx]);
                 return -1;
             }
-            option.ValueCount--;
+            data_idx++;
         }
 
-        return i;
+        if (arg_idx < option.ValueCountMin)
+        {
+            CLI_ERROR("ERROR: Not enough data, count = [%d], required mini = [%d]\n", arg_idx, option.ValueCountMin);
+            return -1;
+        }
+
+        return arg_idx;
     }
     case OPT_STRING:
     {
@@ -323,7 +331,7 @@ int CLI_excuteCommand(int argc, char *args[], stCliCommand commands[])
  *
  * @param argc      Argument count
  * @param args      Argument string
- * @param options   Argument options
+ * @param options   Argument options list
  * @return          The number of un-used Argument count.
  */
 int CLI_parseArgs(int argc, char *args[], stCliOption options[])
