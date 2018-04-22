@@ -10,124 +10,11 @@
 #include <termios.h>
 #endif
 
-
 stTermHandle gTermHandle =
 {
 { 0 } };
 
-#if TERM_IO_OS == TERM_OS_OSX
-/*!@brief   Set STDIN in OSX to non-blocking mode.
- * @retval  [0] Success
- * @retval  [-1] Fail
- */
-int osx_initTerm()
-{
-#if TERM_IO_MODE == TERM_MODE_NONBLOCK
-    struct termios new, old;
-
-    //Disable Echo function for STDIN
-    int flag;
-    if (tcgetattr(STDIN_FILENO, &old) == -1)
-    {
-        return (-1);
-    }
-    new = old;
-    new.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL | ICANON);
-
-    //Set NONBLOCK mode for STDIN
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &new) == -1)
-    {
-        tcsetattr(STDIN_FILENO, TCSAFLUSH, &old);
-        return (-1);
-    }
-    flag = fcntl(STDIN_FILENO, F_GETFL);
-    flag |= O_NONBLOCK;
-    if (fcntl(STDIN_FILENO, F_SETFL, flag) == -1)
-    {
-        return (-1);
-    }
-
-    printf("STDIN set to non-blocking mode\n%s", TERM_PROMPT_CHAR);
-#else
-    //STDIN is blocking mode by default. (Block till you press "ENTER")
-#endif
-    return 0;
-}
-
-int osx_getc(FILE *fp)
-{
-    char c = fgetc(fp);
-    return c;
-}
-
-#endif
-
-#if TERM_IO_OS == TERM_OS_STM32
-static char uartterm_rx_buf[TERM_STRING_BUF_SIZE] =
-{   0};
-
-void stm32_initTerm(char *BufPtr, int BufSize)
-{
-    //Step1: Link the buffer to UART RX
-    /**
-     * HAL_UART_Receive_IT(&huart2, BufPtr, BufSize);
-     */
-
-    //Step2: Link the UART Rx complete call back to Term_IO_init() to enable automatic ring buffer.
-    /**
-     * void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-     * {
-     *    if (huart == huart2)
-     *    {
-     *        Term_IO_init();
-     *    }
-     * }
-     *
-     */
-}
-
-/*!@brief Get a single char from a MCU UART buffer.
- *        Assume it's a ring buffer of size 256.
- *
- * @param src_str[in]   Pointer to the MCU buffer.
- * @retval < char >     A single char of value.
- *         < 0xFF >     No new ch
- */
-char stm32_getc(char src_str[])
-{
-#if TERM_IO_MODE == TERM_MODE_NONBLOCK
-    static int idx = 0;
-    char val = src_str[idx];
-
-    if (val == 0)
-    {
-        return ('\xFF');    //return EOF when no data
-    }
-    else
-    {
-        src_str[idx] = 0;    //Clear buf and move index to next.
-        idx++;
-
-        //!>@note   Here assume your MCU is using a ring buffer to store received data
-        //!         and the size is 256.
-        if (idx > TERM_STRING_BUF_SIZE)
-        {
-            idx = 0;
-        }
-        return (val);
-    }
-#endif
-
-#if TERM_IO_MODE == TERM_MODE_BLOCK
-    char c = 0xff;
-    while(HAL_OK != HAL_UART_Receive(huart2,&c,1,10000));
-    return c;
-#endif
-
-}
-#endif
-
-int get_array_index( old_idx, move, size)
+int term_get_array_index(int old_idx, int move, int size)
 {
     int new_idx = old_idx + move;
     if (new_idx < 0)
@@ -149,7 +36,7 @@ int term_history_push(stTermHandle *TermHandle, int depth)
 
     //Set new push/pull index, Calculate next history index.
     TermHandle->his_pull_idx = TermHandle->his_push_idx;
-    TermHandle->his_push_idx = get_array_index(TermHandle->his_push_idx, depth, TERM_HISTORY_DEPTH);
+    TermHandle->his_push_idx = term_get_array_index(TermHandle->his_push_idx, depth, TERM_HISTORY_DEPTH);
 
     memset(TermHandle->history[TermHandle->his_push_idx], 0, TERM_STRING_BUF_SIZE);
 #endif
@@ -160,7 +47,7 @@ int term_history_pull(stTermHandle *TermHandle, int depth)
 {
 #if TERM_HISTORY_DEPTH
     //Calculate next pull index
-    int new_pull_idx = get_array_index(TermHandle->his_pull_idx, depth, TERM_HISTORY_DEPTH);
+    int new_pull_idx = term_get_array_index(TermHandle->his_pull_idx, depth, TERM_HISTORY_DEPTH);
 
     //**Up Arrow**, Print & Move
     if (depth < 0)
@@ -322,24 +209,31 @@ int term_delete(char *string, int idx)
 
 int Term_IO_init()
 {
-#if TERM_IO_OS == TERM_OS_OSX
-    return osx_initTerm();
-#endif
+    struct termios new, old;
+    int flag;
 
-#if TERM_IO_OS == TERM_OS_STM32
-    return stm32_initTerm(uartterm_rx_buf, TERM_STRING_BUF_SIZE);
-#endif
+    //Disable Echo function for STDIN
+    tcgetattr(STDIN_FILENO, &old);
+    new = old;
+    new.c_lflag &= ~(ECHO | ECHOE | ECHOK | ECHONL | ICANON);
+    tcsetattr(STDIN_FILENO, TCSAFLUSH, &new);
+
+    //Set STDIN to Non-blocking mode.
+    flag = fcntl(STDIN_FILENO, F_GETFL);
+    flag |= O_NONBLOCK;
+    if (fcntl(STDIN_FILENO, F_SETFL, flag) == -1)
+    {
+        return (-1);
+    }
+
+    printf("STDIN set to non-blocking mode\n%s", TERM_PROMPT_CHAR);
+
+    return 0;
 }
 
 char Term_IO_getc(void)
 {
-#if TERM_IO_OS == TERM_OS_OSX
-    return osx_getc(stdin);
-#endif
-
-#if TERM_IO_OS == TERM_OS_STM32
-    return stm32_getc(uartterm_rx_buf);
-#endif
+    return getchar();
 }
 
 int Term_IO_gets(char *dest_str, stTermHandle *TermHandle)
@@ -389,7 +283,8 @@ int Term_IO_gets(char *dest_str, stTermHandle *TermHandle)
 
             break;
         }
-        case CLI_LINE_END_CHAR: //End of a line
+        case '\r': //End of a line
+        case '\n': //End of a line
         {
             //Push to history without \'n'
             if (TermHandle->index > 0)

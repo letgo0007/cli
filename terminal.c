@@ -72,7 +72,7 @@ int Command_test(int argc, char *args[])
     {
     { OPT_COMMENT, 0, NULL, "Basic Options" },
     { OPT_HELP, 'h', "help", "Show help hints" },
-    { OPT_INT, 'i', "int", "Get a Integer value", (void*) Tempdata.IntData, NULL, 0, 16 },
+    { OPT_INT, 'i', "int", "Get a Integer value", (void*) Tempdata.IntData, NULL, 1, 16 },
     { OPT_STRING, 's', "string", "Get a String value", (void*) Tempdata.StringData, NULL },
     { OPT_BOOL, 'b', "bool", "Get a Boolean value", (void*) &Tempdata.BoolData, NULL },
     { OPT_END, 0, NULL, NULL, NULL, print_args } };
@@ -265,9 +265,9 @@ int Terminal_run(stCliCommand cmdlist[])
         int argcount = 0;
         CLI_StrToArgs(sbuf, &argcount, argbuf);
         CLI_excuteCommand(argcount, argbuf, cmdlist);
+
         memset(sbuf, 0, scount);
-        memset(argbuf, 0, sizeof(char*) * argcount);
-        argcount = 0;
+
         printf("%s", TERM_PROMPT_CHAR);
     }
     else if (scount == 1)

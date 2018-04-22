@@ -3,8 +3,8 @@
  *          CLI (Command Line Interface) function.
  *
  * @author  Nick Yang
- * @date    2018/03/15
- * @version V0.1
+ * @date    2018/04/23
+ * @version V0.2
  *****************************************************************************/
 
 #ifndef CLI_C_
@@ -137,7 +137,7 @@ int cli_getData(int argc, char *argv[], stCliOption option)
 
         if (arg_idx < option.ValueCountMin)
         {
-            CLI_ERROR("ERROR: Not enough data, count = [%d], required mini = [%d]\n", arg_idx, option.ValueCountMin);
+            CLI_ERROR("ERROR:Not enough data, get[%d], required[%d].\n", arg_idx, option.ValueCountMin);
             return -1;
         }
 
