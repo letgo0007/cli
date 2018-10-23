@@ -73,7 +73,7 @@ CLI_RET cli_getInt(char *string, int *data_ptr)
  * @param options   Option list
  * @return          CLI_SUCCESS or CLI_FAILURE of the process
  */
-CLI_RET cli_printOptionHelp(stCliOption options[])
+CLI_RET cli_printOptionHelp(Cli_OptionTypeDef options[])
 {
     int i = 0;
     while (options[i].OptType != OPT_END)
@@ -91,7 +91,7 @@ CLI_RET cli_printOptionHelp(stCliOption options[])
     return CLI_SUCCESS;
 }
 
-CLI_RET cli_printCommandHelp(stCliCommand commands[])
+CLI_RET cli_printCommandHelp(Cli_CommandTypeDef commands[])
 {
     int i = 0;
     CLI_PRINT("%-8s%s\n", "help", "Show the command list");
@@ -111,7 +111,7 @@ CLI_RET cli_printCommandHelp(stCliCommand commands[])
  * @param option Option to handle the data
  * @return
  */
-int cli_getData(int argc, char *argv[], stCliOption option)
+int Cli_parseData(int argc, char *argv[], Cli_OptionTypeDef option)
 {
     switch (option.OptType)
     {
@@ -185,7 +185,7 @@ int cli_getData(int argc, char *argv[], stCliOption option)
  * @param options       option list.
  * @return
  */
-int cli_handleOpt(int argc, char *argv[], stCliOption options[])
+int Cli_parseOption(int argc, char *argv[], Cli_OptionTypeDef options[])
 {
     int i = 0;
     int c = 0;
@@ -223,7 +223,7 @@ int cli_handleOpt(int argc, char *argv[], stCliOption options[])
     }
 
     // Convert arg_data
-    c = cli_getData(--argc, ++argv, options[i]);
+    c = Cli_parseData(--argc, ++argv, options[i]);
     return c;
 
     CLI_ERROR("ERROR: Unknown Option [%s]\n", argv[0]);
@@ -244,7 +244,7 @@ int cli_handleOpt(int argc, char *argv[], stCliOption options[])
  * @param args      Arguments string Output, e.g. "This" "is" "a" "help"
  * @return  CLI_SUCEESS or CLI_FAILURE of the process.
  */
-CLI_RET CLI_StrToArgs(char *string, int *argc, char *args[])
+CLI_RET Cli_parseString(char *string, int *argc, char *args[])
 {
     CHECK_NULL_PTR(string);
     CHECK_NULL_PTR(argc);
@@ -294,7 +294,7 @@ CLI_RET CLI_StrToArgs(char *string, int *argc, char *args[])
     return CLI_SUCCESS;
 }
 
-int CLI_excuteCommand(int argc, char *args[], stCliCommand commands[])
+int Cli_runCommand(int argc, char *args[], Cli_CommandTypeDef commands[])
 {
     if (argc == 0)
     {
@@ -334,7 +334,7 @@ int CLI_excuteCommand(int argc, char *args[], stCliCommand commands[])
  * @param options   Argument options list
  * @return          The number of un-used Argument count.
  */
-int CLI_parseArgs(int argc, char *args[], stCliOption options[])
+int Cli_parseArgs(int argc, char *args[], Cli_OptionTypeDef options[])
 {
     int i;
     int unused_argc = 0;
@@ -346,7 +346,7 @@ int CLI_parseArgs(int argc, char *args[], stCliOption options[])
     {
         if (args[i][0] == '-')
         {
-            int ret = cli_handleOpt(argc - i, &args[i], options);
+            int ret = Cli_parseOption(argc - i, &args[i], options);
             if (ret < 0)
             {
                 CLI_ERROR("ERROR: Failed to handle option [%s]\n", args[i]);

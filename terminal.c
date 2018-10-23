@@ -15,7 +15,7 @@
 #include "unistd.h"
 
 #include "cli.h"
-#include "term_io.h"
+#include "cli_simple.h"
 #include "terminal.h"
 
 /*!@brief A simple example of handling un-used args. Just print them.
@@ -55,20 +55,20 @@ int print_args(int argc, char **args)
  * @retval 0        Success
  * @retval -1       Failure
  */
-int Command_test(int argc, char *args[])
+int cli_test(int argc, char *args[])
 {
     //It's Recommended to build a temperory struct to store result.
     struct DataStruct
     {
         int IntData[16];
-        char StringData[TERM_STRING_BUF_SIZE];
+        char StringData[256];
         _Bool BoolData;
     } Tempdata;
 
     memset(&Tempdata, 0, sizeof(Tempdata));
 
     //Build the option list for main
-    stCliOption MainOpt[] =
+    Cli_OptionTypeDef MainOpt[] =
     {
     { OPT_COMMENT, 0, NULL, "Basic Options" },
     { OPT_HELP, 'h', "help", "Show help hints" },
@@ -78,7 +78,7 @@ int Command_test(int argc, char *args[])
     { OPT_END, 0, NULL, NULL, NULL, print_args } };
 
     //Run Arguments parse using MainOpt
-    CLI_parseArgs(argc, args, MainOpt);
+    Cli_parseArgs(argc, args, MainOpt);
 
     //Print Result
     printf("\nResult: Int[%d][%d] String[%s] Bool[%d]\n", Tempdata.IntData[0], Tempdata.IntData[1], Tempdata.StringData,
@@ -87,44 +87,22 @@ int Command_test(int argc, char *args[])
     return 0;
 }
 
-int Command_sleep(int argc, char *args[])
+int cli_wait(int argc, char *args[])
 {
     float sec = strtof(args[0], NULL);
     usleep(1000000 * sec);
     return 0;
 }
 
-int Command_repeat(int argc, char *args[])
-{
-    int count = strtol(args[0], NULL, 0);
-    int i = 0;
 
-    for (i = 0; i < count; i++)
-    {
-        char cmd_buf[TERM_STRING_BUF_SIZE] =
-        { 0 };
-        char *argbuf[TERM_TOKEN_AMOUNT] =
-        { 0 };
-        int argcount = 0;
-
-        strcpy(cmd_buf, args[1]);
-
-        printf("%sRepeat [%d/%d] of [%s]\n%s", TERM_BOLD, i + 1, count, cmd_buf, TERM_RESET);
-        CLI_StrToArgs(cmd_buf, &argcount, argbuf);
-        CLI_excuteCommand(argcount, argbuf, MainCmd_V1);
-    }
-
-    return 0;
-}
-
-int Command_time(int argc, char *args[])
+int cli_time(int argc, char *args[])
 {
     struct timeb t_start;
     struct timeb t_end;
 
     //Get start/stop time stampe and run the command.
     ftime(&t_start);
-    int ret = CLI_excuteCommand(argc, args, MainCmd_V1);
+    int ret = Cli_runCommand(argc, args, MainCmd_V1);
     ftime(&t_end);
 
     int dif_ms;
@@ -163,7 +141,7 @@ int Command_date(int argc, char *args[])
 
 /*!@brief Handler for command "time". Print Unix time stamp.
  */
-int Command_ver(int argc, char *args[])
+int cli_ver(int argc, char *args[])
 {
     printf("Version(compile time): %s %s\n", __DATE__, __TIME__);
     return 0;
@@ -176,7 +154,7 @@ int Command_quit(int argc, char *args[])
     exit(0);
 }
 
-int Command_echo(int argc, char *args[])
+int cli_echo(int argc, char *args[])
 {
     int i = 0;
     char strbuf[256] =
@@ -192,35 +170,25 @@ int Command_echo(int argc, char *args[])
     return 0;
 }
 
-int Command_history(int argc, char *args[])
+extern PrintHistory();
+int cli_history(int argc, char *args[])
 {
-    int i = 0;
-
-    printf("Command History:\n[Index][Command]\n");
-    for (i = 0; i < TERM_HISTORY_DEPTH; i++)
-    {
-        printf("[%5d][%s]%s%s\n", i,                                // History index
-                gTermHandle.history[i],                             // History string
-                (i == gTermHandle.his_push_idx) ? "<-Push" : "",    // Push index
-                (i == gTermHandle.his_pull_idx) ? "<-Pull" : "");   // Pull index
-    }
-    return 0;
+    PrintHistory();
 }
 
 /*!@brief Build the command list.
  *
  */
-stCliCommand MainCmd_V1[] =
+Cli_CommandTypeDef MainCmd_V1[] =
 {
-{ "test", Command_test, "Run a argument parse example." },
-{ "time", Command_time, "Get the execute time of a command." },
-{ "sleep", Command_sleep, "Sleep process, unit in second." },
-{ "repeat", Command_repeat, "Repeat run a command." },
+{ "test", cli_test, "Run a argument parse example." },
+{ "time", cli_time, "Get the execute time of a command." },
+{ "sleep", cli_wait, "Sleep process, unit in second." },
 { "date", Command_date, "Get current time stamp" },
 { "quit", Command_quit, "Quit the process" },
-{ "version", Command_ver, "Show Command version" },
-{ "echo", Command_echo, "Echo back command" },
-{ "history", Command_history, "Show command history" },
+{ "version", cli_ver, "Show Command version" },
+{ "echo", cli_echo, "Echo back command" },
+{ "history", cli_history, "Show command history" },
 { NULL, NULL } };
 
 /*!@brief return Terminal prompt string.
@@ -246,13 +214,13 @@ char *Terminal_prompt(void)
 
 int Terminal_gets(char *string)
 {
-    return Term_IO_gets(string, &gTermHandle);
+    return Simple_IO_gets(string);
 }
 
 /* Example of a Mini-Terminal */
-int Terminal_run(stCliCommand cmdlist[])
+int Terminal_run(Cli_CommandTypeDef cmdlist[])
 {
-    static char sbuf[TERM_STRING_BUF_SIZE] =
+    static char sbuf[256] =
     { 0 };
     int scount;
 
@@ -260,11 +228,11 @@ int Terminal_run(stCliCommand cmdlist[])
     scount = Terminal_gets(sbuf);
     if (scount > 1)
     {
-        char *argbuf[TERM_TOKEN_AMOUNT] =
+        char *argbuf[16] =
         { 0 };
         int argcount = 0;
-        CLI_StrToArgs(sbuf, &argcount, argbuf);
-        CLI_excuteCommand(argcount, argbuf, cmdlist);
+        Cli_parseString(sbuf, &argcount, argbuf);
+        Cli_runCommand(argcount, argbuf, cmdlist);
 
         memset(sbuf, 0, scount);
 

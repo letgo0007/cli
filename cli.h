@@ -58,7 +58,7 @@ typedef struct stCliOption
     CliCallBack *CallBack;      //!< Function call back
     int ValueCountMin;          //!< Minimum data amount needed for this option
     int ValueCountMax;          //!< Maximum data amount needed for this option
-} stCliOption;
+} Cli_OptionTypeDef;
 
 //!@typedef stCliCommand
 //!         Structure of a Cli command.
@@ -68,12 +68,12 @@ typedef struct stCliCommand
     CliCallBack *FuncCallBack;  //!< Function call back
     const char *HelpText;       //!< Text to describe the function.
 
-} stCliCommand;
+} Cli_CommandTypeDef;
 
-CLI_RET CLI_StrToArgs(char *string, int *argc, char *args[]);
+CLI_RET Cli_parseString(char *string, int *argc, char *args[]);
 
-int CLI_excuteCommand(int argc, char *args[], stCliCommand command[]);
+int Cli_runCommand(int argc, char *args[], Cli_CommandTypeDef command[]);
 
-int CLI_parseArgs(int argc, char *args[], stCliOption options[]);
+int Cli_parseArgs(int argc, char *args[], Cli_OptionTypeDef options[]);
 
 #endif /* CLI_H_ */

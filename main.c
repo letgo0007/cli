@@ -15,8 +15,17 @@
 
 int main(int argc, char *args[])
 {
+
+    int test[8] =
+    { 1, 2, 3, 4, 5, 6, 7, 8 };
+
+    for (int i = 0; i < 256; i++)
+    {
+        printf("0x%X\t", test[i % 8]);
+    }
+
     //Run initial commands
-    CLI_excuteCommand(argc - 1, ++args, MainCmd_V1);
+    Cli_runCommand(argc - 1, ++args, MainCmd_V1);
 
     while (1)
     {

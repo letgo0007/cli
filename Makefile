@@ -8,7 +8,7 @@ CSOURCE=\
 main.c\
 cli.c\
 terminal.c\
-term_io.c
+cli_simple.c
 
 ###C include path
 CINCLUDE=-I.

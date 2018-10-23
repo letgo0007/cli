@@ -1,15 +1,12 @@
-/******************************************************************************
- * @file    terminal.h
- *          An example of building a command list for CLI.
+/*
+ * cli_simple.h
  *
- * @author  Nick Yang
- * @date    2018/03/15
- * @version V0.1
- *****************************************************************************/
-#ifndef TERMINAL_H_
-#define TERMINAL_H_
+ *  Created on: Oct 23, 2018
+ *      Author: nickyang
+ */
 
-#include "cli.h"
+#ifndef CLI_SIMPLE_H_
+#define CLI_SIMPLE_H_
 
 /*! ANSI escape code
  *  Terminal flow control with ANSI escape code.
@@ -42,13 +39,17 @@
 #define TERM_YELLOW                 "\e[33m"
 #define TERM_BLUE                   "\e[34m"
 
-#define TERM_PROMPT_CHAR            Terminal_prompt()
+#define TERM_PROMPT_CHAR            ">"
 #define TERM_PROMPT_LEN             strlen(TERM_PROMPT_CHAR)
 
-extern Cli_CommandTypeDef MainCmd_V1[];
 
-char *Terminal_prompt(void);
+typedef struct
+{
+    char *Name;                         //!< Command Name
+    int (*Func)(int argc, char **argv);   //!< Function call back
+    char *HelpText;                     //!< Text to describe the function.
+} TermCommand_TypeDef;
 
-int Terminal_run(Cli_CommandTypeDef cmdlist[]);
+int Simple_IO_gets(char *dest_str);
 
-#endif /* TERMINAL_H_ */
+#endif /* CLI_SIMPLE_H_ */
