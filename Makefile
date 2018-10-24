@@ -6,8 +6,6 @@ CC=gcc
 ###C source file
 CSOURCE=\
 main.c\
-cli.c\
-terminal.c\
 cli_simple.c
 
 ###C include path

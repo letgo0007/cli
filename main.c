@@ -10,26 +10,38 @@
 #include "stdio.h"
 #include "unistd.h"
 
-#include "cli.h"
-#include "terminal.h"
+#include "cli_simple.h"
+
+extern int builtin_test(int argc, char **args);
 
 int main(int argc, char *args[])
 {
-
-    int test[8] =
-    { 1, 2, 3, 4, 5, 6, 7, 8 };
-
-    for (int i = 0; i < 256; i++)
-    {
-        printf("0x%X\t", test[i % 8]);
-    }
-
-    //Run initial commands
-    Cli_runCommand(argc - 1, ++args, MainCmd_V1);
+    Cli_Register("new1", "new command resister.", &builtin_test);
+    Cli_Register("new2", "new command resister.", &builtin_test);
+    Cli_Unregister("test");
 
     while (1)
     {
-        Terminal_run(MainCmd_V1);
+        static char sbuf[256] =
+        { 0 };
+        int scount;
+
+        //Start a Mini-Terminal
+        scount = Simple_IO_gets(sbuf);
+        if (scount > 1)
+        {
+
+            Cli_RunString(sbuf);
+
+            memset(sbuf, 0, scount);
+
+            printf("%s", TERM_PROMPT_CHAR);
+        }
+        else if (scount == 1)
+        {
+            printf("%s", TERM_PROMPT_CHAR);
+        }
+
         usleep(1000);
     }
 
