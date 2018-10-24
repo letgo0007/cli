@@ -6,7 +6,8 @@ CC=gcc
 ###C source file
 CSOURCE=\
 main.c\
-cli_simple.c
+cli_porting.c \
+cli.c
 
 ###C include path
 CINCLUDE=-I.

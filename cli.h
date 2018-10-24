@@ -5,8 +5,8 @@
  *      Author: nickyang
  */
 
-#ifndef CLI_SIMPLE_H_
-#define CLI_SIMPLE_H_
+#ifndef CLI_H_
+#define CLI_H_
 
 /*! ANSI escape code
  *  Terminal flow control with ANSI escape code.
@@ -39,8 +39,15 @@
 #define ANSI_YELLOW                 "\e[33m"
 #define ANSI_BLUE                   "\e[34m"
 
-#define TERM_PROMPT_CHAR            ">"
-#define TERM_PROMPT_LEN             strlen(TERM_PROMPT_CHAR)
+#define CLI_PROMPT_CHAR             ">"
+#define CLI_PROMPT_LEN              strlen(CLI_PROMPT_CHAR)
+#define CLI_STR_BUF_SIZE            256     //!< Maximum command length
+
+#define HISTORY_ENABLE              1       //!< Enable history function
+#define HISTORY_DEPTH               32      //!< Maximum number of command saved in history
+#define HISTORY_MEM_SIZE            256     //!< Maximum RAM usage for history
+
+#define CLI_CMD_LIST_SIZE           32      //!< Number of commands in the list
 
 typedef struct
 {
@@ -49,10 +56,12 @@ typedef struct
     int (*Func)(int argc, char **argv); //!< Function call
 } CliCommand_TypeDef;
 
-int Simple_IO_gets(char *dest_str);
-int Cli_Register(const char *name, const char *prompt, int (*func));
+int Cli_GetLine(char *dest_str);
+int Cli_Register(const char *name, const char *prompt, int (*func)(int, char **));
 int Cli_Unregister(const char *name);
-int Cli_RunArgs(int argcount, char **argbuf);
-int Cli_RunString(char *cmd);
+int Cli_RunByArgs(int argcount, char **argbuf);
+int Cli_RunByString(char *cmd);
+int Cli_Init(void);
+int Cli_Run(void);
 
-#endif /* CLI_SIMPLE_H_ */
+#endif /* CLI_H_ */
