@@ -11,51 +11,58 @@
 
 #ifdef __APPLE__
 #include "TargetConditionals.h"
-#ifdef TARGET_OS_MAC
+#if TARGET_OS_MAC
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
 #endif
 #endif
 
-#include "cli.h"
+#ifdef STM32L4
+#include "stm32l4xx.h"
+#include "cmsis_os.h"
+#endif
 
-unsigned int CliMemUsage = 0;
+#include "cli.h"
 
 void cli_sleep(int ms)
 {
-#ifdef TARGET_OS_MAC
+#if  defined(TARGET_OS_MAC)
     usleep(ms * 1000);
+#elif defined(osCMSIS)
+    osDelay(ms);
+#elif defined(__STM32L4_CMSIS_VERSION)
+    HAL_Delay(ms)
 #endif
 }
 
 void* cli_malloc(size_t size)
 {
-#ifdef TARGET_OS_MAC
+
     void *ptr = NULL;
     while (ptr == NULL)
     {
+#if  defined(osCMSIS)
+        ptr = pvPortMalloc(size);
+#else
         ptr = malloc(size);
+#endif
     }
     memset(ptr, 0, size);
-    CliMemUsage += size;
-    printf("request memory = %d\n",size);
     return ptr;
-#endif
 }
 
 void cli_free(void* ptr)
 {
-#ifdef TARGET_OS_MAC
+#if  defined(osCMSIS)
+    vPortFree(ptr);
+#else
     free(ptr);
 #endif
 }
 
-int cli_io_init()
+int cli_port_init()
 {
-    printf("Complier Version  = %s\n", __VERSION__);
-    printf("Compile Date/Time = %s %s\n", __DATE__, __TIME__);
-
 #ifdef TARGET_OS_MAC
     struct termios new, old;
     int flag;
@@ -77,20 +84,17 @@ int cli_io_init()
     setvbuf(stdout, (char*) NULL, _IOLBF, 256);
     setvbuf(stderr, (char*) NULL, _IONBF, 256);
     setvbuf(stdin, (char*) NULL, _IONBF, 256);
-    printf("Platform          = %s\n", "MacOs");
-    printf("Memory Usage      = %d Byte\n", CliMemUsage);
-    printf("STDIN set to non-blocking mode\n%s", CLI_PROMPT_CHAR);
 #endif
 
     return 0;
 }
 
-void cli_io_deinit()
+void cli_port_deinit()
 {
     ;
 }
 
-int cli_io_getc(void)
+int cli_port_getc(void)
 {
     return getchar();
 }

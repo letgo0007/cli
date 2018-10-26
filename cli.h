@@ -42,26 +42,26 @@
 #define CLI_PROMPT_CHAR             ">"
 #define CLI_PROMPT_LEN              strlen(CLI_PROMPT_CHAR)
 #define CLI_STR_BUF_SIZE            256     //!< Maximum command length
+#define CLI_CMD_LIST_SIZE           32      //!< Number of commands in the list
+#define CLI_VERSION                 "1.0.0"
 
 #define HISTORY_ENABLE              1       //!< Enable history function
 #define HISTORY_DEPTH               32      //!< Maximum number of command saved in history
 #define HISTORY_MEM_SIZE            256     //!< Maximum RAM usage for history
 
-#define CLI_CMD_LIST_SIZE           32      //!< Number of commands in the list
-
 typedef struct
 {
     const char *Name;                   //!< Command Name
     const char *Prompt;                 //!< Prompt text
-    int (*Func)(int argc, char **argv); //!< Function call
+    int (*Func)(int argc, char **argv);    //!< Function call
 } CliCommand_TypeDef;
 
-int Cli_GetLine(char *dest_str);
 int Cli_Register(const char *name, const char *prompt, int (*func)(int, char **));
 int Cli_Unregister(const char *name);
 int Cli_RunByArgs(int argcount, char **argbuf);
 int Cli_RunByString(char *cmd);
 int Cli_Init(void);
 int Cli_Run(void);
+int Cli_Task(void);
 
 #endif /* CLI_H_ */

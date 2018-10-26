@@ -6,14 +6,14 @@ CC=gcc
 ###C source file
 CSOURCE=\
 main.c\
-cli_porting.c \
+cli_port.c \
 cli.c
 
 ###C include path
 CINCLUDE=-I.
 
 ###C flags
-CFLAG=-Wall
+CFLAG=-Wall -g -O2
 
 ###Lib search path
 LIBPATH=
@@ -25,10 +25,13 @@ LIBFLAG=
 TARGET=cli
 
 all:
-	$(CC) $(CSOURCE) $(CINCLUDE) $(CFLAG) -o$(TARGET)$(LIBPATH) $(LIBFLAG)
+	$(CC) $(CFLAG) $(LIBPATH) $(LIBFLAG) $(CINCLUDE) $(CSOURCE) -o$(TARGET)
 	
 debug: all
-	./cli
+	lldb cli
 
+run: all
+	./$(TARGET)
+	
 clean: 
 	rm -f $(TARGET)

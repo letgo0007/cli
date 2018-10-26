@@ -11,16 +11,16 @@
 
 #include <cli.h>
 
-char *StringBuf = NULL;
-unsigned int StringIdx = 0;                             //Command string buffer char index.
+char *StringBuf = NULL;                     //Command String buffer
+unsigned int StringIdx = 0;                 //Command string buffer char index.
 
-char **HistoryBuf = NULL;                               //History pointer buffer
-unsigned int HistoryQueueHead = 0;                      //History Queue Head
-unsigned int HistoryQueueTail = 0;                      //History Queue Tail
-unsigned int HistoryPullDepth = 0;                      //History pull depth, must < CLI_HISTORY_MAX_DEPTH
-unsigned int HistoryMemUsage = 0;                       //History total memory usage.
+char **HistoryBuf = NULL;                   //History pointer buffer
+unsigned int HistoryQueueHead = 0;          //History Queue Head
+unsigned int HistoryQueueTail = 0;          //History Queue Tail
+unsigned int HistoryPullDepth = 0;          //History pull depth, must < CLI_HISTORY_MAX_DEPTH
+unsigned int HistoryMemUsage = 0;           //History total memory usage.
 
-CliCommand_TypeDef *CliCommandList = NULL;
+CliCommand_TypeDef *CliCommandList = NULL;    //CLI commands list
 
 /*! Porting APIs.
  *
@@ -29,13 +29,13 @@ CliCommand_TypeDef *CliCommandList = NULL;
 extern void cli_sleep(int us);
 void* cli_malloc(size_t size);
 void cli_free(void* ptr);
-extern int cli_io_init(void);
-extern void cli_io_deinit(void);
-extern int cli_io_getc(void);
+extern int cli_port_init(void);
+extern void cli_port_deinit(void);
+extern int cli_port_getc(void);
 
 int InsertChar(char *string, char c, int idx)
 {
-    //right shift buffer from index to end
+    //right shift buffer from end to insert point
     for (int i = strlen(string); i > idx; i--)
     {
         string[i] = string[i - 1];
@@ -108,7 +108,7 @@ int History_PushToHead(char *string)
     HistoryMemUsage += len;
 
     //Release History buffer if number or memory usage out of limit
-    while ((HistoryQueueHead - HistoryQueueTail >= HISTORY_DEPTH) || (HistoryMemUsage >= HISTORY_MEM_SIZE))
+    while ((History_GetDepth() >= HISTORY_DEPTH) || (History_GetMemUsage() >= HISTORY_MEM_SIZE))
     {
         //Release from Queue Tail
         int i = HistoryQueueTail % HISTORY_DEPTH;
@@ -123,7 +123,6 @@ int History_PushToHead(char *string)
         HistoryQueueTail++;
     }
 
-    //Clear out current string buffer
     return 0;
 }
 
@@ -163,6 +162,8 @@ int Esc_CheckEscSequence(char c)
     if (c == '\e')
     {
         EscFlag = 1;
+        EscIdx = 0;
+        memset(EscBuf, 0, 8);
     }
 
     //Return the character unchanged if not Escape sequence.
@@ -236,12 +237,16 @@ int builtin_help(int argc, char **argv)
 
 int builtin_history(int argc, char **argv)
 {
-    printf(" Index Address   Command\n");
+    const char *helptext = "history \n"
+            "\t-d --dump  Dump command history.\n"
+            "\t-c --clear Clear command history.\n";
+
+    printf("Index  Address    Command\n");
 
     for (int i = HistoryQueueTail; i < HistoryQueueHead; i++)
     {
         int j = i % HISTORY_DEPTH;
-        printf("%6d 0x%08X %s\n", i, (int) HistoryBuf[j], (HistoryBuf[j] == NULL) ? "NULL" : HistoryBuf[j]);
+        printf("%-6d 0x%08X %s\n", i, (int) HistoryBuf[j], (HistoryBuf[j] == NULL) ? "NULL" : HistoryBuf[j]);
     }
     return 0;
 }
@@ -257,14 +262,32 @@ int builtin_test(int argc, char **args)
     return 0;
 }
 
-int Cli_GetLine(char *dest_str)
+int builtin_repeat(int argc, char **args)
+{
+    const char *helptext = "repeat [num] [command]\n";
+    unsigned int count = strtol(args[1], NULL, 0);
+
+    for (unsigned int i = 1; i <= count; i++)
+    {
+        printf("%sRepeat %d/%d:%s\n", ANSI_BOLD, i, count, ANSI_RESET);
+        int ret = Cli_RunByArgs(argc - 2, args + 2);
+        if (ret != 0)
+        {
+            return ret;
+        }
+    }
+
+    return 0;
+}
+
+int Cli_GetLine(char **ptr)
 {
     char c = 0;
 
     do
     {
         //Get 1 char and check
-        c = cli_io_getc();
+        c = cli_port_getc();
 
         //Handle characters
         switch (c)
@@ -297,16 +320,15 @@ int Cli_GetLine(char *dest_str)
                 History_PushToHead(StringBuf);
             }
 
-            //Copy out string with '\n'
+            //Echo back
             strcat(StringBuf, "\n");
-            strcpy(dest_str, StringBuf);
             printf("\n");
 
-            //Clear buffer
-            int len = strlen(StringBuf);
-            memset(StringBuf, 0, CLI_STR_BUF_SIZE);
+            // Return pointer and length
             StringIdx = 0;
             HistoryPullDepth = 0;
+            int len = strlen(StringBuf);
+            *ptr = StringBuf;
 
             return len;    //return copy data count
         }
@@ -320,20 +342,23 @@ int Cli_GetLine(char *dest_str)
             else
             {
                 //Insert 1 byte to buffer
-                InsertChar(StringBuf, c, StringIdx);
-                StringIdx++;
-
-                //Loop Back function
-                if (1)
+                if (strlen(StringBuf) < CLI_STR_BUF_SIZE - 2)
                 {
-                    if (StringBuf[StringIdx] == 0)
+                    InsertChar(StringBuf, c, StringIdx);
+                    StringIdx++;
+
+                    //Loop Back function
+                    if (1)
                     {
-                        //Loop back 1 byte if it's the end of a line.
-                        printf("%c", c);
-                    }
-                    else
-                    {
-                        PrintNewLine(StringBuf, StringIdx);
+                        if (StringBuf[StringIdx] == 0)
+                        {
+                            //Loop back 1 byte if it's the end of a line.
+                            printf("%c", c);
+                        }
+                        else
+                        {
+                            PrintNewLine(StringBuf, StringIdx);
+                        }
                     }
                 }
             }
@@ -396,7 +421,9 @@ int Cli_RunByArgs(int argc, char **args)
         {
             if (strcmp(CliCommandList[i].Name, args[0]) == 0)
             {
-                return CliCommandList[i].Func(argc, args);
+                int ret = CliCommandList[i].Func(argc, args);
+                printf("\n%s\n", ret ? "FAIL" : "OK");
+                return ret;
             }
         }
     }
@@ -412,22 +439,41 @@ int Cli_RunByString(char *cmd)
         return -1;
     }
 
-    int argc = 0;
-    char **args = cli_malloc(sizeof(char*) * 64);
-    char *token = NULL;
+    // Find commands Separate by ";"
+    int cmdc = 0;
+    char **cmds = cli_malloc(sizeof(char*) * 16);
+    char *cmdtoken = NULL;
 
-    token = strtok(cmd, " \t\r\n");
-    while (token != NULL)
+    cmdtoken = strtok(cmd, ";");
+    while ((cmdtoken != NULL) && (cmdc < 16))
     {
-        args[argc] = token;
-        argc++;
-        token = strtok(NULL, " \t\r\n");
+        cmds[cmdc] = cmdtoken;
+        cmdc++;
+        cmdtoken = strtok(NULL, ";");
     }
-    args[argc] = NULL;
 
-    Cli_RunByArgs(argc, args);
+    // Run every commands
+    for (int i = 0; i < cmdc; i++)
+    {
+        int argc = 0;
+        char **args = cli_malloc(sizeof(char*) * 32);
+        char *token = NULL;
 
-    cli_free(args);
+        token = strtok(cmds[i], " \t\r\n");
+        while ((token != NULL) && (argc < 32))
+        {
+            args[argc] = token;
+            argc++;
+            token = strtok(NULL, " \t\r\n");
+        }
+        args[argc] = NULL;
+
+        Cli_RunByArgs(argc, args);
+
+        cli_free(args);
+    }
+
+    cli_free(cmds);
 
     return 0;
 
@@ -435,7 +481,7 @@ int Cli_RunByString(char *cmd)
 
 int Cli_Init(void)
 {
-    // Clear opration buffers
+    // Clear operation buffers
     StringIdx = 0;
     StringBuf = cli_malloc(sizeof(char) * CLI_STR_BUF_SIZE);
     HistoryBuf = cli_malloc(sizeof(char*) * HISTORY_DEPTH);
@@ -443,20 +489,30 @@ int Cli_Init(void)
 
     History_Clear();
 
-    // Register built in commands.
+    // Register built-in commands.
     Cli_Register("help", "Show command & prompt.", &builtin_help);
     Cli_Register("history", "Show command history", &builtin_history);
     Cli_Register("test", "Run a command parse example", &builtin_test);
+    Cli_Register("repeat", "Repeat run a command.", &builtin_repeat);
+    // Initialize IO port
+    cli_port_init();
 
-    // Initialize IO
-    cli_io_init();
+    printf("---------------------------------\n");
+    printf("Command Line Interface %s\n", CLI_VERSION);
+    printf("Compiler      = %s\n", __VERSION__);
+    printf("Date/Time     = %s %s\n", __DATE__, __TIME__);
+    printf("Operation Mem = %ld Byte\n",
+            sizeof(char) * CLI_STR_BUF_SIZE + sizeof(char*) * HISTORY_DEPTH
+                    + sizeof(CliCommand_TypeDef) * CLI_CMD_LIST_SIZE);
+    printf("History Mem   = %d Byte\n", HISTORY_MEM_SIZE);
+    printf("---------------------------------\n");
 
     return 0;
 }
 
 int Cli_Deinit(void)
 {
-    cli_io_deinit();
+    cli_port_deinit();
 
     History_Clear();
 
@@ -470,11 +526,10 @@ int Cli_Deinit(void)
 
 int Cli_Run(void)
 {
-    static char sbuf[256] =
-    { 0 };
+    char *sbuf = NULL;
     int scount = 0;
 
-    scount = Cli_GetLine(sbuf);
+    scount = Cli_GetLine(&sbuf);
 
     if (scount > 1)
     {
@@ -485,6 +540,7 @@ int Cli_Run(void)
     else if (scount == 1)
     {
         printf("%s", CLI_PROMPT_CHAR);
+        memset(sbuf, 0, scount);
     }
 
     return 0;
