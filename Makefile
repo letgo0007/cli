@@ -27,8 +27,9 @@ TARGET=cli
 all:
 	$(CC) $(CFLAG) $(LIBPATH) $(LIBFLAG) $(CINCLUDE) $(CSOURCE) -o$(TARGET)
 	
+### Debug with lldb. see @ http://lldb.llvm.org/lldb-gdb.html
 debug: all
-	lldb cli
+	lldb cli -o "process launch --tty"
 
 run: all
 	./$(TARGET)

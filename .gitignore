@@ -54,3 +54,4 @@ dkms.conf
 .project
 .settings/language.settings.xml
 cli
+.settings/org.eclipse.cdt.codan.core.prefs

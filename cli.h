@@ -53,8 +53,16 @@ typedef struct
 {
     const char *Name;                   //!< Command Name
     const char *Prompt;                 //!< Prompt text
-    int (*Func)(int argc, char **argv);    //!< Function call
+    int (*Func)(int argc, char **argv); //!< Function call
 } CliCommand_TypeDef;
+
+typedef struct
+{
+    const char ShortName;
+    const char *LongName;
+    char NeedOption;
+    char **OptionPtr;
+} CliOption_TypeDef;
 
 int Cli_Register(const char *name, const char *prompt, int (*func)(int, char **));
 int Cli_Unregister(const char *name);
