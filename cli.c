@@ -1,38 +1,42 @@
-/*
- * cli_simple.c
+/******************************************************************************
+ * @file    cli.c
+ * @brief   A simple Command Line Interface (CLI) for MCU.
  *
- *  Created on: Oct 23, 2018
- *      Author: nickyang
- */
+ * @author  Nick Yang
+ * @date    2018/11/01
+ * @version V1.0
+ *****************************************************************************/
+/** Includes ----------------------------------------------------------------*/
 
 #include "stdlib.h"
 #include "stdio.h"
 #include "string.h"
 
 #include <cli.h>
+/** Private defines ---------------------------------------------------------*/
 
-char *StringBuf = NULL;                 //Command String buffer pointer
-unsigned int StringIdx = 0;             //Command string index
-
-char **HistoryBuf = NULL;               //History pointer buffer pointer
-unsigned int HistoryQueueHead = 0;      //History queue head
-unsigned int HistoryQueueTail = 0;      //History queue tail
-unsigned int HistoryPullDepth = 0;      //History pull depth
-unsigned int HistoryMemUsage = 0;       //History total memory usage
-
-CliCommand_TypeDef *CliCommandList = NULL;    //CLI commands list pointer
-
-/*! Porting APIs.
- *
- */
-
+/** Private function prototypes ---------------------------------------------*/
 extern void cli_sleep(int us);
 extern void* cli_malloc(size_t size);
 extern void cli_free(void* ptr);
 extern int cli_port_init(void);
 extern void cli_port_deinit(void);
 extern int cli_port_getc(void);
+char cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options[]);
 
+/** Variables ---------------------------------------------------------------*/
+char *StringPtr = NULL;                     //Command String buffer pointer
+unsigned int StringIdx = 0;                 //Command string index
+
+char **HistoryPtr = NULL;                   //History pointer buffer pointer
+unsigned int HistoryQueueHead = 0;          //History queue head
+unsigned int HistoryQueueTail = 0;          //History queue tail
+unsigned int HistoryPullDepth = 0;          //History pull depth
+unsigned int HistoryMemUsage = 0;           //History total memory usage
+
+CliCommand_TypeDef *CliCommandList = NULL;  //CLI commands list pointer
+
+/** Functions ---------------------------------------------------------------*/
 /*!@brief Insert a char to a position of a string.
  *
  * @param string    Pointer to the old string
@@ -48,7 +52,7 @@ char* insert_char(char *string, char c, int pos)
     }
 
     //right shift buffer from end to insert point
-    for (int i = strlen(string); i > pos; i--)
+    for (int i = strlen(string) + 1; i > pos; i--)
     {
         string[i] = string[i - 1];
     }
@@ -101,10 +105,10 @@ void history_clear(void)
     // Try free string heap if used.
     for (int i = 0; i < HISTORY_DEPTH; i++)
     {
-        if (HistoryBuf[i] != NULL)
+        if (HistoryPtr[i] != NULL)
         {
-            cli_free(HistoryBuf[i]);
-            HistoryBuf[i] = NULL;
+            cli_free(HistoryPtr[i]);
+            HistoryPtr[i] = NULL;
         }
     }
 
@@ -146,7 +150,7 @@ char* history_push(char *string)
     memcpy(ptr, string, len);
 
     //Save new history queue pointer & queue head.
-    HistoryBuf[HistoryQueueHead % HISTORY_DEPTH] = ptr;
+    HistoryPtr[HistoryQueueHead % HISTORY_DEPTH] = ptr;
     HistoryQueueHead++;
     HistoryMemUsage += len;
 
@@ -156,11 +160,11 @@ char* history_push(char *string)
         //Release from Queue Tail
         int idx = HistoryQueueTail % HISTORY_DEPTH;
 
-        if (HistoryBuf[idx] != NULL)
+        if (HistoryPtr[idx] != NULL)
         {
-            HistoryMemUsage -= strlen(HistoryBuf[idx]) + 1;
-            cli_free(HistoryBuf[idx]);
-            HistoryBuf[idx] = NULL;
+            HistoryMemUsage -= strlen(HistoryPtr[idx]) + 1;
+            cli_free(HistoryPtr[idx]);
+            HistoryPtr[idx] = NULL;
         }
 
         HistoryQueueTail++;
@@ -180,21 +184,22 @@ char* history_pull(int depth)
     //Calculate where to pull the history.
     unsigned int pull_idx = (HistoryQueueHead - depth) % HISTORY_DEPTH;
 
-    if (HistoryBuf[pull_idx] != NULL)
+    if (HistoryPtr[pull_idx] != NULL)
     {
         //Pull out history to string buffer
-        memset(StringBuf, 0, CLI_STR_BUF_SIZE);
-        strcpy(StringBuf, HistoryBuf[pull_idx]);
-        StringIdx = strlen(StringBuf);
+        memset(StringPtr, 0, CLI_STR_BUF_SIZE);
+        strcpy(StringPtr, HistoryPtr[pull_idx]);
+        StringIdx = strlen(StringPtr);
 
         //Print new line on console
-        print_newline(StringBuf, StringIdx);
+        print_newline(StringPtr, StringIdx);
     }
 
-    return HistoryBuf[pull_idx];
+    return HistoryPtr[pull_idx];
 }
 
-/*!@brief Check if a string is part of ANSI escape sequence.
+/*!@brief Handle specail key from key board.
+ *        Check if a string is part of ANSI escape sequence.
  *        Refer to <https://en.wikipedia.org/wiki/ANSI_escape_code>
  *        Loop put the character from a string to this function.
  *        This function give terminal the ability to response to some multi-byte Keyboard keys.
@@ -203,7 +208,7 @@ char* history_pull(int depth)
  * @retval 0    The character is part of escape sequence.
  * @retval c    The character is not part
  */
-int esc_handler(char c)
+int handle_special_key(char c)
 {
     static char EscBuf[8] =
     { 0 };
@@ -228,7 +233,7 @@ int esc_handler(char c)
         //Put character to Escape sequence buffer
         EscBuf[EscIdx++] = c;
 
-        if (strcmp(EscBuf, "\e[A") == 0)            //!<Up Arrow
+        if (strcmp(EscBuf, ANSI_CURSOR_UP) == 0)            //!<Up Arrow
         {
             if (HistoryPullDepth < history_getdepth())
             {
@@ -236,7 +241,7 @@ int esc_handler(char c)
             }
             history_pull(HistoryPullDepth);
         }
-        else if (strcmp(EscBuf, "\e[B") == 0)       //!<Down Arrow
+        else if (strcmp(EscBuf, ANSI_CURSOR_DOWN) == 0)     //!<Down Arrow
         {
             if (HistoryPullDepth > 0)
             {
@@ -244,15 +249,15 @@ int esc_handler(char c)
             }
             history_pull(HistoryPullDepth);
         }
-        else if (strcmp(EscBuf, "\e[C") == 0)       //!<Right arrow
+        else if (strcmp(EscBuf, ANSI_CURSOR_RIGHT) == 0)    //!<Right arrow
         {
-            if (StringBuf[StringIdx] != 0)
+            if (StringPtr[StringIdx] != 0)
             {
                 StringIdx++;
                 printf("%s", ANSI_CURSOR_RIGHT);
             }
         }
-        else if (strcmp(EscBuf, "\e[D") == 0)       //!<Left arrow
+        else if (strcmp(EscBuf, ANSI_CURSOR_LEFT) == 0)     //!<Left arrow
         {
             if (StringIdx > 0)
             {
@@ -308,13 +313,14 @@ int builtin_history(int argc, char **args)
 
     if ((strcmp("-d", args[1]) == 0) || (strcmp("--dump", args[1]) == 0))
     {
+        printf("History Mem Usage = %d\n", HistoryMemUsage);
         printf("History dump:\n");
         printf("Index  Address    Command\n");
         printf("-------------------------\n");
         for (int i = HistoryQueueTail; i < HistoryQueueHead; i++)
         {
             int j = i % HISTORY_DEPTH;
-            printf("%-6d 0x%08X %s\n", i, (int) HistoryBuf[j], (HistoryBuf[j] == NULL) ? "NULL" : HistoryBuf[j]);
+            printf("%-6d 0x%08X %s\n", i, (int) HistoryPtr[j], (HistoryPtr[j] == NULL) ? "NULL" : HistoryPtr[j]);
         }
     }
     else if ((strcmp("-c", args[1]) == 0) || (strcmp("--clear", args[1]) == 0))
@@ -343,6 +349,60 @@ int builtin_test(int argc, char **args)
     for (int i = 0; i < argc; i++)
     {
         printf("Args[%d] = %s\n", i, args[i] == NULL ? "NULL" : args[i]);
+    }
+
+    static CliOption_TypeDef options[] =
+    {
+    { 'i', "integer", 0, NULL },
+    { 's', "string", 0, NULL },
+    { 'b', "bool", 0, NULL },
+    { 'h', "help", 0, NULL },
+    { 0, "", 0, NULL } };
+
+    char c = 0;
+    char *data[1] =
+    { 0 };
+
+    while (c != -1)
+    {
+        c = cli_getopt(argc, args, data, options);
+
+        switch (c)
+        {
+        case 'i':
+        {
+            if (*data != NULL)
+            {
+                printf("Get Integer value of [%s]\n", *data);
+            }
+            break;
+        }
+        case 's':
+        {
+            if (*data != NULL)
+            {
+                printf("Get String value of [%s]\n", *data);
+            }
+            break;
+        }
+        case 'f':
+        {
+            printf("Flag is set\n");
+            break;
+        }
+        case 'h':
+        {
+            printf("help text here!");
+            break;
+        }
+        case '?':
+        {
+            printf("ERROR: Invalid option of [%s]\n", *data);
+            return -1;
+            break;
+        }
+        }
+
     }
 
     return 0;
@@ -395,39 +455,77 @@ int builtin_sleep(int argc, char **args)
     return 0;
 }
 
-char Cli_getopt(int argc, char **args, CliOption_TypeDef options[])
+char cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options[])
 {
     static int op_argc = 0;
-    static char **op_args = NULL;
-    static int op_index = 0;
+    static char** op_args = NULL;
+    static int op_idx = 0;
+    static int op_ret = '?';
 
-    if ((argc != 0) && (args != NULL))
+    if ((op_argc != argc) || (op_args != args))
     {
         op_argc = argc;
         op_args = args;
-        op_index = 0;
+        op_idx = 1;         //ignore the 1st argument, it's the command name.
+        op_ret = '?';
     }
 
-    if (op_index < op_argc)
+    if ((op_argc > 0) && (op_idx < op_argc))
     {
-        if(op_args[op_index][0] == '-')
+
+        //Long options with "--"
+        if ((args[op_idx][0] == '-') && (args[op_idx][1] == '-'))
         {
-            if(op_args[op_index][1] == '-') //Long options with "--"
+            *data_ptr = NULL;
+
+            int i = 0;
+            while ((options[i].LongName != NULL) && (options[i].LongName[0] != 0))
             {
-                ;
+                if (strcmp(&args[op_idx][2], options[i].LongName) == 0)
+                {
+                    op_ret = options[i].ShortName;
+                    goto exit;
+                }
+                i++;
             }
-            else //Short Options with "-"
-            {
-                ;
-            }
+            *data_ptr = args[op_idx];
+            op_ret = '?';
+            goto exit;
         }
-        else //parameters with out "--"
+        //Short Options with "-"
+        else if (args[op_idx][0] == '-')
         {
-            ;
+            *data_ptr = NULL;
+
+            int i = 0;
+            while (options[i].ShortName != 0)
+            {
+                if (args[op_idx][1] == options[i].ShortName)
+                {
+                    op_ret = options[i].ShortName;
+                    goto exit;
+                }
+                i++;
+            }
+            *data_ptr = args[op_idx];
+            op_ret = '?';
+            goto exit;
+        }
+        // Data options
+        else
+        {
+            *data_ptr = args[op_idx];
+            goto exit;
         }
 
-        op_index ++;
     }
+    else
+    {
+        return -1;
+    }
+
+    exit: op_idx++;
+    return op_ret;
 
     return 0;
 }
@@ -438,9 +536,9 @@ char Cli_getopt(int argc, char **args, CliOption_TypeDef options[])
  *
  * @return Pointer to the line or NULL for no line is get.
  */
-char* Cli_GetLine(void)
+char* cli_getline(void)
 {
-    char c = 0;
+    int c = 0;
 
     do
     {
@@ -461,10 +559,10 @@ char* Cli_GetLine(void)
             if (StringIdx > 0)
             {
                 //Delete 1 byte from buffer.
-                delete_char(StringBuf, StringIdx);
+                delete_char(StringPtr, StringIdx);
                 StringIdx--;
                 //Print New line
-                print_newline(StringBuf, StringIdx);
+                print_newline(StringPtr, StringIdx);
             }
             break;
         }
@@ -474,44 +572,42 @@ char* Cli_GetLine(void)
             // Push to history without \'n'
             if (StringIdx > 0)
             {
-                history_push(StringBuf);
+                history_push(StringPtr);
             }
 
             // Echo back
-            strcat(StringBuf, "\n");
+            strcat(StringPtr, "\n");
             printf("\n");
 
             // Return pointer and length
             StringIdx = 0;
             HistoryPullDepth = 0;
-
-            // eturn copy data count
-            return StringBuf;
+            return StringPtr;
         }
         default:
         {
             //The letters after a ESC is terminal control characters
-            if (esc_handler(c) == 0)
+            if (handle_special_key(c) == 0)
             {
                 return 0;
             }
             else
             {
                 //Insert 1 byte to buffer
-                if (strlen(StringBuf) < CLI_STR_BUF_SIZE - 2)
+                if (strlen(StringPtr) < CLI_STR_BUF_SIZE - 2)
                 {
-                    insert_char(StringBuf, c, StringIdx);
+                    insert_char(StringPtr, c, StringIdx);
                     StringIdx++;
 
                     //Loop back function
-                    if (StringBuf[StringIdx] == 0)
+                    if (StringPtr[StringIdx] == 0)
                     {
 
                         printf("%c", c);
                     }
                     else
                     {
-                        print_newline(StringBuf, StringIdx);
+                        print_newline(StringPtr, StringIdx);
                     }
                 }
             }
@@ -638,8 +734,8 @@ int Cli_Init(void)
 {
     // Clear operation buffers
     StringIdx = 0;
-    StringBuf = cli_malloc(sizeof(char) * CLI_STR_BUF_SIZE);
-    HistoryBuf = cli_malloc(sizeof(char*) * HISTORY_DEPTH);
+    StringPtr = cli_malloc(sizeof(char) * CLI_STR_BUF_SIZE);
+    HistoryPtr = cli_malloc(sizeof(char*) * HISTORY_DEPTH);
     CliCommandList = cli_malloc(sizeof(CliCommand_TypeDef) * CLI_CMD_LIST_SIZE);
 
     history_clear();
@@ -662,7 +758,7 @@ int Cli_Init(void)
                     + sizeof(CliCommand_TypeDef) * CLI_CMD_LIST_SIZE);
     printf("History Mem   = %d Byte\n", HISTORY_MEM_SIZE);
     printf("---------------------------------\n");
-
+    printf("%s", CLI_PROMPT_CHAR);
     return 0;
 }
 
@@ -673,8 +769,8 @@ int Cli_Deinit(void)
     history_clear();
 
     StringIdx = 0;
-    cli_free(StringBuf);
-    cli_free(HistoryBuf);
+    cli_free(StringPtr);
+    cli_free(HistoryPtr);
     cli_free(CliCommandList);
 
     return 0;
@@ -682,15 +778,16 @@ int Cli_Deinit(void)
 
 int Cli_Run(void)
 {
-    char *str = Cli_GetLine();
+    char *str = cli_getline();
 
     if (str != NULL)
     {
-        if (strlen(str) >= 1)
+        int len = strlen(str);
+        if (len >= 1)
         {
             Cli_RunByString(str);
         }
-        memset(StringBuf, 0, CLI_STR_BUF_SIZE);
+        memset(str, 0, len + 1);
         printf("%s", CLI_PROMPT_CHAR);
     }
 

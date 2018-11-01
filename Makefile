@@ -13,7 +13,7 @@ cli.c
 CINCLUDE=-I.
 
 ###C flags
-CFLAG=-Wall -g -O2
+CFLAG=-Wall -g -O0
 
 ###Lib search path
 LIBPATH=

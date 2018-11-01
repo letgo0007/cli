@@ -1,12 +1,17 @@
-/*
- * cli_simple.h
+/******************************************************************************
+ * @file    cli.c
+ * @brief   Command Line Interface (CLI) for MCU.
  *
- *  Created on: Oct 23, 2018
- *      Author: nickyang
- */
+ * @author  Nick Yang
+ * @date    2018/11/01
+ * @version V1.0
+ *****************************************************************************/
 
 #ifndef CLI_H_
 #define CLI_H_
+
+/*! Includes ----------------------------------------------------------------*/
+/*! Defines -----------------------------------------------------------------*/
 
 /*! ANSI escape code
  *  Terminal flow control with ANSI escape code.
@@ -63,6 +68,9 @@ typedef struct
     char NeedOption;
     char **OptionPtr;
 } CliOption_TypeDef;
+
+/*! Variables ---------------------------------------------------------------*/
+/*! Functions ---------------------------------------------------------------*/
 
 int Cli_Register(const char *name, const char *prompt, int (*func)(int, char **));
 int Cli_Unregister(const char *name);
