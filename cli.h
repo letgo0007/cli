@@ -47,7 +47,8 @@
 #define CLI_PROMPT_CHAR             ">"
 #define CLI_PROMPT_LEN              strlen(CLI_PROMPT_CHAR)
 #define CLI_STR_BUF_SIZE            256     //!< Maximum command length
-#define CLI_CMD_LIST_SIZE           32      //!< Number of commands in the list
+#define CLI_ARGC_MAX                32      //!< Maximum arguments in a command
+#define CLI_COMMAND_SIZE            32      //!< Number of commands in the list
 #define CLI_VERSION                 "1.0.0"
 
 #define HISTORY_ENABLE              1       //!< Enable history function

@@ -3,8 +3,8 @@
  *          The main function entrance.
  *
  * @author  Nick Yang
- * @date    2018/03/15
- * @version V0.1
+ * @date    2018/11/02
+ * @version V1.0
  *****************************************************************************/
 
 #include <cli.h>

@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <unistd.h>
+#include <sys/timeb.h>
 #endif
 #endif
 
@@ -25,14 +26,31 @@
 
 #include "cli.h"
 
-void cli_sleep(int ms)
+void cli_sleep(float s)
 {
 #if  defined(TARGET_OS_MAC)
-    usleep(ms * 1000);
+    usleep(s * 1000000);
 #elif defined(osCMSIS)
-    osDelay(ms);
+    osDelay(s*1000);
 #elif defined(__STM32L4_CMSIS_VERSION)
-    HAL_Delay(ms)
+    HAL_Delay(s*1000)
+#endif
+}
+
+/*!@brief Get system tick in ms.
+ *
+ * @return
+ */
+unsigned int cli_gettick(void)
+{
+#if  defined(TARGET_OS_MAC)
+    struct timeb tm;
+    ftime(&tm);
+    return (unsigned int) (tm.time * 1000 + tm.millitm);
+#elif defined(osCMSIS)
+    //
+#elif defined(__STM32L4_CMSIS_VERSION)
+    return HAL_GetTick()
 #endif
 }
 
@@ -81,9 +99,9 @@ int cli_port_init()
         return (-1);
     }
 
-    setvbuf(stdout, (char*) NULL, _IOLBF, 256);
-    setvbuf(stderr, (char*) NULL, _IONBF, 256);
-    setvbuf(stdin, (char*) NULL, _IONBF, 256);
+    setvbuf(stdout, (char*) NULL, _IOLBF, 1024);
+    setvbuf(stderr, (char*) NULL, _IONBF, 1);
+    setvbuf(stdin, (char*) NULL, _IONBF, 1);
 #endif
 
     return 0;
