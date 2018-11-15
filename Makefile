@@ -6,7 +6,7 @@ CC=gcc
 ###C source file
 CSOURCE=\
 main.c\
-cli_port.c \
+cli_port_mac.c \
 cli.c
 
 ###C include path

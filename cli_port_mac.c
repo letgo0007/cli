@@ -1,10 +1,13 @@
-/*
- * cli_porting.c
+/******************************************************************************
+ * @file    cli_porting_mac.c
+ * @brief   A simple Command Line Interface (CLI) for MCU.
+ *          This file contains the API that needs to port for your system.
+ *          This file give a example for MacOS.
  *
- *  Created on: Oct 23, 2018
- *      Author: nickyang
- */
-
+ * @author  Nick Yang
+ * @date    2018/11/01
+ * @version V1.0
+ *****************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,21 +22,12 @@
 #endif
 #endif
 
-#ifdef STM32L4
-#include "stm32l4xx.h"
-#include "cmsis_os.h"
-#endif
-
 #include "cli.h"
 
 void cli_sleep(float s)
 {
 #if  defined(TARGET_OS_MAC)
     usleep(s * 1000000);
-#elif defined(osCMSIS)
-    osDelay(s*1000);
-#elif defined(__STM32L4_CMSIS_VERSION)
-    HAL_Delay(s*1000)
 #endif
 }
 
@@ -47,10 +41,6 @@ unsigned int cli_gettick(void)
     struct timeb tm;
     ftime(&tm);
     return (unsigned int) (tm.time * 1000 + tm.millitm);
-#elif defined(osCMSIS)
-    //
-#elif defined(__STM32L4_CMSIS_VERSION)
-    return HAL_GetTick()
 #endif
 }
 
@@ -60,11 +50,7 @@ void* cli_malloc(size_t size)
     void *ptr = NULL;
     while (ptr == NULL)
     {
-#if  defined(osCMSIS)
-        ptr = pvPortMalloc(size);
-#else
         ptr = malloc(size);
-#endif
     }
     memset(ptr, 0, size);
     return ptr;
@@ -72,11 +58,7 @@ void* cli_malloc(size_t size)
 
 void cli_free(void* ptr)
 {
-#if  defined(osCMSIS)
-    vPortFree(ptr);
-#else
     free(ptr);
-#endif
 }
 
 int cli_port_init()

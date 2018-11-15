@@ -1,5 +1,5 @@
 /******************************************************************************
- * @file    cli.c
+ * @file    cli.h
  * @brief   Command Line Interface (CLI) for MCU.
  *
  * @author  Nick Yang
@@ -13,11 +13,10 @@
 /*! Includes ----------------------------------------------------------------*/
 /*! Defines -----------------------------------------------------------------*/
 
-/*! ANSI escape code
+/*!@defgroup ANSI flow control Escape sequence define.
  *  Terminal flow control with ANSI escape code.
  *  Refer to <https://en.wikipedia.org/wiki/ANSI_escape_code>
  */
-
 #define ANSI_CURSOR_UP              "\e[A"
 #define ANSI_CURSOR_DOWN            "\e[B"
 #define ANSI_CURSOR_RIGHT           "\e[C"
@@ -44,30 +43,51 @@
 #define ANSI_YELLOW                 "\e[33m"
 #define ANSI_BLUE                   "\e[34m"
 
-#define CLI_PROMPT_CHAR             ">"
+/*!@defgroup CLI return code defines
+ *
+ */
+#define CLI_OK                      0       //!< General success.
+#define CLI_FAIL                    -1      //!< General fail.
+#define CLI_ERROR_COMMAND           -2      //!< Command is unknown or wrong syntax.
+#define CLI_ERROR_PARAM             -3      //!< Parameter is wrong or missing
+#define CLI_ERROR_UNKNOWN_CHAR      -4      //!< Get character
+
+/*!@defgroup CLI operation defines
+ *
+ */
+#define CLI_PROMPT_CHAR             ">"     //!< Prompt character shows at the head of line
 #define CLI_PROMPT_LEN              strlen(CLI_PROMPT_CHAR)
 #define CLI_STR_BUF_SIZE            256     //!< Maximum command length
 #define CLI_ARGC_MAX                32      //!< Maximum arguments in a command
 #define CLI_COMMAND_SIZE            32      //!< Number of commands in the list
 #define CLI_VERSION                 "1.0.0"
 
+/*!@defgroup CLI history function defines
+ *
+ */
 #define HISTORY_ENABLE              1       //!< Enable history function
 #define HISTORY_DEPTH               32      //!< Maximum number of command saved in history
 #define HISTORY_MEM_SIZE            256     //!< Maximum RAM usage for history
 
+/*!@typedef CliCommand_TypeDef
+ *          Structure for a CLI command.
+ */
 typedef struct
 {
-    const char *Name;                   //!< Command Name
-    const char *Prompt;                 //!< Prompt text
-    int (*Func)(int argc, char **argv); //!< Function call
+    const char *Name;                       //!< Command Name
+    const char *Prompt;                     //!< Prompt text
+    int (*Func)(int argc, char **argv);     //!< Function call
 } CliCommand_TypeDef;
 
+/*!@typedef CliOption_TypeDef
+ *          Structure for a CLI command options. It's a implement of the "getopt" & "getopt_long" function.
+ * @example see "builtin_test" function
+ */
 typedef struct
 {
-    const char ShortName;
-    const char *LongName;
-    char NeedOption;
-    char **OptionPtr;
+    const char ShortName;                   //!< Short name work with "-", e.g. 'h'
+    const char *LongName;                   //!< Long name work with "--", e.g. "help"
+    const int ReturnVal;         //!< Return value if this option is detected. Use short name would be the simplest way.
 } CliOption_TypeDef;
 
 /*! Variables ---------------------------------------------------------------*/

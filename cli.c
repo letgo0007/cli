@@ -23,7 +23,7 @@ extern void cli_free(void* ptr);
 extern int cli_port_init(void);
 extern void cli_port_deinit(void);
 extern int cli_port_getc(void);
-char cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options[]);
+int cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options[]);
 
 /** Variables ---------------------------------------------------------------*/
 char *StringPtr = NULL;                     //Command String buffer pointer
@@ -103,22 +103,24 @@ void print_newline(char *string, int pos)
  */
 void history_clear(void)
 {
-
-    // Try free string heap if used.
-    for (int i = 0; i < HISTORY_DEPTH; i++)
+    if (HistoryPtr != NULL)
     {
-        if (HistoryPtr[i] != NULL)
+        // Try free string heap if used.
+        for (int i = 0; i < HISTORY_DEPTH; i++)
         {
-            cli_free(HistoryPtr[i]);
-            HistoryPtr[i] = NULL;
+            if (HistoryPtr[i] != NULL)
+            {
+                cli_free(HistoryPtr[i]);
+                HistoryPtr[i] = NULL;
+            }
         }
-    }
 
-    // Reset index
-    HistoryQueueHead = 0;
-    HistoryQueueTail = 0;
-    HistoryPullDepth = 0;
-    HistoryMemUsage = 0;
+        // Reset index
+        HistoryQueueHead = 0;
+        HistoryQueueTail = 0;
+        HistoryPullDepth = 0;
+        HistoryMemUsage = 0;
+    }
 }
 
 /*!@brief Get the number of commands stored in history heap.
@@ -335,6 +337,11 @@ int builtin_history(int argc, char **args)
             "\t-c --clear Clear command history.\n"
             "\t-h --help  Show this help text.\n";
 
+#if HISTORY_ENABLE == 0
+    printf("History is function disabled.\n");
+    return -1;
+#endif
+
     if ((argc < 2) || (args[argc - 1] == NULL))
     {
         printf("%s", helptext);
@@ -364,7 +371,7 @@ int builtin_history(int argc, char **args)
     }
     else
     {
-        printf("ERROR: invalid option of [%s]\n", args[1]);
+        printf("\%sERROR: invalid option of [%s]%s\n", ANSI_RED, args[1], ANSI_RESET);
     }
 
     return 0;
@@ -383,17 +390,17 @@ int builtin_test(int argc, char **args)
 
     static CliOption_TypeDef options[] =
     {
-    { 'i', "integer", 0, NULL },
-    { 's', "string", 0, NULL },
-    { 'b', "bool", 0, NULL },
-    { 'h', "help", 0, NULL },
-    { 0, "", 0, NULL } };
+    { 'i', "integer", 'i' },
+    { 's', "string", 's' },
+    { 0, "bool", 'b' },
+    { 'h', "help", 'h' },
+    { 0, "", 0 } };
 
     char c = 0;
     char *data[1] =
     { 0 };
 
-    while (c != -1)
+    do
     {
         c = cli_getopt(argc, args, data, options);
 
@@ -415,9 +422,9 @@ int builtin_test(int argc, char **args)
             }
             break;
         }
-        case 'f':
+        case 'b':
         {
-            printf("Flag is set\n");
+            printf("Bool flag is set\n");
             break;
         }
         case 'h':
@@ -427,13 +434,13 @@ int builtin_test(int argc, char **args)
         }
         case '?':
         {
-            printf("ERROR: Invalid option of [%s]\n", *data);
+            printf("%sERROR: invalid option of [%s]%s\n", ANSI_RED, *data, ANSI_RESET);
             return -1;
             break;
         }
         }
 
-    }
+    } while (c != -1);
 
     return 0;
 }
@@ -467,7 +474,7 @@ int builtin_repeat(int argc, char **args)
             }
         } while (c != EOF);
 
-        printf("-----\n%sRepeat %d/%d:%s %s\n", ANSI_BOLD, i, count, args[2], ANSI_RESET);
+        printf("-----\n%sRepeat %d/%d: [%s] %s\n", ANSI_BOLD, i, count, args[2], ANSI_RESET);
         int ret = Cli_RunByString(args[2]);
         if (ret != 0)
         {
@@ -519,7 +526,35 @@ int builtin_time(int argc, char **args)
     return ret;
 }
 
-char cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options[])
+/*!@brief   Get options from arguments.
+ *          This is a implement for "getopt" & "getopt_long" in standard C++ liberary.
+ *          This function check all the arguments and return the index of option if the argument has a format of
+ *          "-x" or "--xxxxx", and it matches short name or long name in the options list..
+ *          Generally this function should be called in loop until it returns '0'.
+ *
+ * @example Refer to builtin_test as an example. a simple example as below:
+ *          int ret = 0;
+ *          CliOption_TypeDef options[] = {{'a',"aaa",'a'}};
+ *          do {
+ *              ret = cli_getopt(argc, args, data, options);
+ *              switch (ret) {
+ *              case 'a':
+ *                  ...; break;
+ *              case '?':
+ *                  printf("Unknown option!");
+ *                  ...; break;
+ *              }
+ *          }while(ret != -1)
+ *
+ * @param   argc        Argument count
+ * @param   args        Argument vector
+ * @param   data_ptr    Pointer to data argument of current
+ * @param   options     Option list, refer to @typedef CliOption_TypeDef
+ * @retval  -1          End of operation, all arguments processed.
+ *          '?'         Get an unknown option that is not in the options list.
+ *          others      ReturnVal in the options list that matches current argument.
+ */
+int cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options[])
 {
     static int op_argc = 0;
     static char** op_args = NULL;
@@ -543,12 +578,15 @@ char cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef option
             *data_ptr = NULL;
 
             int i = 0;
-            while ((options[i].LongName != NULL) && (options[i].LongName[0] != 0))
+            while (options[i].ReturnVal != 0)
             {
-                if (strcmp(&args[op_idx][2], options[i].LongName) == 0)
+                if (options[i].LongName[0] != 0)
                 {
-                    op_ret = options[i].ShortName;
-                    goto exit;
+                    if (strcmp(&args[op_idx][2], options[i].LongName) == 0)
+                    {
+                        op_ret = options[i].ReturnVal;
+                        goto exit;
+                    }
                 }
                 i++;
             }
@@ -562,11 +600,11 @@ char cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef option
             *data_ptr = NULL;
 
             int i = 0;
-            while (options[i].ShortName != 0)
+            while (options[i].ReturnVal != 0)
             {
-                if (args[op_idx][1] == options[i].ShortName)
+                if ((args[op_idx][1] == options[i].ShortName) && (options[i].ShortName != 0))
                 {
-                    op_ret = options[i].ShortName;
+                    op_ret = options[i].ReturnVal;
                     goto exit;
                 }
                 i++;
@@ -604,7 +642,6 @@ char* cli_getline(void)
 {
     if (StringPtr == NULL)
     {
-        printf("ERROR: NULL pointer for CLI buffer. Please initialize first.\n");
         return 0;
     }
 
@@ -758,11 +795,21 @@ char* cli_strtoarg(char *str, int* argc, char** argv)
     return NULL;
 }
 
+/*!@brief   Register a command to CLI.
+ * @example Cli_Register("help","show help text",&builtin_help);
+ *
+ * @param   name      Command name
+ * @param   prompt    Command prompt text
+ * @param   func      Pointer to function to run when the command is called.
+ *
+ * @retval  index    The index of the command is inserted in the command list.
+ * @retval  -1       Command register fail.
+ */
 int Cli_Register(const char *name, const char *prompt, int (*func)(int, char **))
 {
     if ((name == NULL) || (prompt == NULL) || func == NULL)
     {
-        return -1;
+        return CLI_FAIL;
     }
 
     for (int i = 0; i < CLI_COMMAND_SIZE; i++)
@@ -777,14 +824,14 @@ int Cli_Register(const char *name, const char *prompt, int (*func)(int, char **)
         }
     }
 
-    return -1;
+    return CLI_FAIL;
 }
 
 int Cli_Unregister(const char *name)
 {
     if ((name == NULL) || (name[0] == 0))
     {
-        return -1;
+        return CLI_FAIL;
     }
 
     for (int i = 0; i < CLI_COMMAND_SIZE; i++)
@@ -798,14 +845,20 @@ int Cli_Unregister(const char *name)
             return i;
         }
     }
-    return -1;
+    return CLI_FAIL;
 }
 
+/*!@brief   Run the CLI by given arguments.
+ *
+ * @param   argc
+ * @param   args
+ * @return  -1      Run command fail.
+ */
 int Cli_RunByArgs(int argc, char **args)
 {
     if ((argc == 0) || (args == NULL))
     {
-        return -1;
+        return CLI_FAIL;
     }
 
     for (int i = 0; i < CLI_COMMAND_SIZE; i++)
@@ -821,15 +874,21 @@ int Cli_RunByArgs(int argc, char **args)
         }
     }
 
-    printf("ERROR: Unknown Command of [%s], try [help].\n", args[0]);
-    return -1;
+    printf("%sERROR: Unknown command of [%s], try [help].%s\n", ANSI_RED, args[0], ANSI_RESET);
+    return CLI_ERROR_COMMAND;
 }
 
+/*!@brief   Run the CLI by given string.
+ *          This function will conver the command string to arguments and run Cli_RunByArgs.
+ *
+ * @param   cmd     Command string, e.g. "test -i 123"
+ * @return
+ */
 int Cli_RunByString(char *cmd)
 {
     if ((cmd == NULL) || (*cmd == 0))
     {
-        return -1;
+        return CLI_FAIL;
     }
 
     // Buffer string
@@ -851,7 +910,7 @@ int Cli_RunByString(char *cmd)
     } while (sub_cmd != NULL);
 
     cli_free(sub_cmd);
-    return 0;
+    return CLI_OK;
 
 }
 
@@ -860,10 +919,12 @@ int Cli_Init(void)
     // Clear operation buffers
     StringIdx = 0;
     StringPtr = cli_malloc(sizeof(char) * CLI_STR_BUF_SIZE);
-    HistoryPtr = cli_malloc(sizeof(char*) * HISTORY_DEPTH);
     CliCommandList = cli_malloc(sizeof(CliCommand_TypeDef) * CLI_COMMAND_SIZE);
 
+#if HISTORY_ENABLE
+    HistoryPtr = cli_malloc(sizeof(char*) * HISTORY_DEPTH);
     history_clear();
+#endif
 
     // Register built-in commands.
     Cli_Register("help", "Show command & prompt.", &builtin_help);
@@ -878,7 +939,7 @@ int Cli_Init(void)
 
     builtin_version(0, NULL);
     printf("%s", CLI_PROMPT_CHAR);
-    return 0;
+    return CLI_OK;
 }
 
 int Cli_Deinit(void)
@@ -892,7 +953,7 @@ int Cli_Deinit(void)
     cli_free(HistoryPtr);
     cli_free(CliCommandList);
 
-    return 0;
+    return CLI_OK;
 }
 
 int Cli_Run(void)
@@ -911,7 +972,7 @@ int Cli_Run(void)
         fflush(stdout);
     }
 
-    return 0;
+    return CLI_OK;
 }
 
 int Cli_Task(void)
