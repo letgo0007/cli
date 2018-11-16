@@ -16,9 +16,9 @@
 #include "TargetConditionals.h"
 #if TARGET_OS_MAC
 #include <fcntl.h>
+#include <sys/timeb.h>
 #include <termios.h>
 #include <unistd.h>
-#include <sys/timeb.h>
 #endif
 #endif
 
@@ -26,7 +26,7 @@
 
 void cli_sleep(float s)
 {
-#if  defined(TARGET_OS_MAC)
+#if defined(TARGET_OS_MAC)
     usleep(s * 1000000);
 #endif
 }
@@ -37,19 +37,18 @@ void cli_sleep(float s)
  */
 unsigned int cli_gettick(void)
 {
-#if  defined(TARGET_OS_MAC)
+#if defined(TARGET_OS_MAC)
     struct timeb tm;
     ftime(&tm);
-    return (unsigned int) (tm.time * 1000 + tm.millitm);
+    return (unsigned int)(tm.time * 1000 + tm.millitm);
 #endif
 }
 
 void* cli_malloc(size_t size)
 {
 
-    void *ptr = NULL;
-    while (ptr == NULL)
-    {
+    void* ptr = NULL;
+    while (ptr == NULL) {
         ptr = malloc(size);
     }
     memset(ptr, 0, size);
@@ -76,14 +75,13 @@ int cli_port_init()
     //Set STDIN to Non-blocking mode.
     flag = fcntl(STDIN_FILENO, F_GETFL);
     flag |= O_NONBLOCK;
-    if (fcntl(STDIN_FILENO, F_SETFL, flag) == -1)
-    {
+    if (fcntl(STDIN_FILENO, F_SETFL, flag) == -1) {
         return (-1);
     }
 
-    setvbuf(stdout, (char*) NULL, _IOLBF, 1024);
-    setvbuf(stderr, (char*) NULL, _IONBF, 1);
-    setvbuf(stdin, (char*) NULL, _IONBF, 1);
+    setvbuf(stdout, (char*)NULL, _IOLBF, 1024);
+    setvbuf(stderr, (char*)NULL, _IONBF, 1);
+    setvbuf(stdin, (char*)NULL, _IONBF, 1);
 #endif
 
     return 0;

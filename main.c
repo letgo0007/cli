@@ -7,18 +7,16 @@
  * @version V1.0
  *****************************************************************************/
 
-#include <cli.h>
 #include "stdio.h"
 #include "unistd.h"
+#include <cli.h>
 
-int main(int argc, char *args[])
+int main(int argc, char* args[])
 {
     Cli_Init();
 
-    while (1)
-    {
+    while (1) {
         Cli_Run();
         usleep(1000);
     }
-
 }

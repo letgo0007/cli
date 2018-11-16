@@ -1,0 +1,7 @@
+Language: Cpp
+BasedOnStyle: WebKit
+AlignConsecutiveAssignments: true
+AlignConsecutiveDeclarations: true
+AlignOperands: true
+AlignTrailingComments: true
+SpacesBeforeTrailingComments: 4
