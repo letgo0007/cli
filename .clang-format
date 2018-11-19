@@ -1,7 +1,8 @@
 Language: Cpp
-BasedOnStyle: WebKit
+BasedOnStyle: LLVM
+IndentWidth:     4
 AlignConsecutiveAssignments: true
 AlignConsecutiveDeclarations: true
-AlignOperands: true
 AlignTrailingComments: true
-SpacesBeforeTrailingComments: 4
+AllowShortFunctionsOnASingleLine: None
+ColumnLimit: 80

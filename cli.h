@@ -46,50 +46,53 @@
 /*!@defgroup CLI return code defines
  *
  */
-#define CLI_OK 0                //!< General success.
-#define CLI_FAIL -1             //!< General fail.
-#define CLI_PROMPT_CHAR ">"     //!< Prompt string shows at the head of line
-#define CLI_PROMPT_LEN 1        //!< Prompt string length
-#define CLI_STR_BUF_SIZE 256    //!< Maximum command length
-#define CLI_ARGC_MAX 32         //!< Maximum arguments in a command
-#define CLI_COMMAND_SIZE 32     //!< Number of commands in the list
-#define CLI_VERSION "1.0.0"     //!< CLI version string
+#define CLI_OK 0             //!< General success.
+#define CLI_FAIL -1          //!< General fail.
+#define CLI_PROMPT_CHAR ">"  //!< Prompt string shows at the head of line
+#define CLI_PROMPT_LEN 1     //!< Prompt string length
+#define CLI_STR_BUF_SIZE 256 //!< Maximum command length
+#define CLI_ARGC_MAX 128     //!< Maximum arguments in a command
+#define CLI_COMMAND_SIZE 256 //!< Number of commands in the list
+#define CLI_VERSION "1.0.0"  //!< CLI version string
 
 /*!@defgroup CLI history function defines
  *
  */
-#define HISTORY_ENABLE 1        //!< Enable history function
-#define HISTORY_DEPTH 32        //!< Maximum number of command saved in history
-#define HISTORY_MEM_SIZE 256    //!< Maximum RAM usage for history
+#define HISTORY_ENABLE 1      //!< Enable history function
+#define HISTORY_DEPTH 32      //!< Maximum number of command saved in history
+#define HISTORY_MEM_SIZE 1024 //!< Maximum RAM usage for history
 
 /*!@typedef CliCommand_TypeDef
  *          Structure for a CLI command.
  */
-typedef struct
-{
-    const char* Name;                      //!< Command Name
-    const char* Prompt;                    //!< Prompt text
-    int (*Func)(int argc, char** argv);    //!< Function call
+typedef struct {
+    const char *Name;                   //!< Command Name
+    const char *Prompt;                 //!< Prompt text
+    int (*Func)(int argc, char **argv); //!< Function call
 } CliCommand_TypeDef;
 
 /*!@typedef CliOption_TypeDef
- *          Structure for a CLI command options. It's a implement of the "getopt" & "getopt_long" function.
+ *          Structure for a CLI command options. It's a implement of the
+ * "getopt" & "getopt_long" function.
  * @example see "builtin_test" function
  */
-typedef struct
-{
-    const char  ShortName;    //!< Short name work with "-", e.g. 'h'
-    const char* LongName;     //!< Long name work with "--", e.g. "help"
-    const int   ReturnVal;    //!< Return value . Use short name would be the simplest way.
+typedef struct {
+    const char  ShortName; //!< Short name work with "-", e.g. 'h'
+    const char *LongName;  //!< Long name work with "--", e.g. "help"
+    const int
+        ReturnVal; //!< Return value . Use short name would be the simplest way.
 } CliOption_TypeDef;
 
 /*! Variables ---------------------------------------------------------------*/
 /*! Functions ---------------------------------------------------------------*/
 
-int Cli_Register(const char* name, const char* prompt, int (*func)(int, char**));
-int Cli_Unregister(const char* name);
-int Cli_RunByArgs(int argcount, char** argbuf);
-int Cli_RunByString(char* cmd);
+int Cli_GetOpt(int argc, char **args, char **data_ptr,
+               CliOption_TypeDef options[]);
+int Cli_Register(const char *name, const char *prompt,
+                 int (*func)(int, char **));
+int Cli_Unregister(const char *name);
+int Cli_RunByArgs(int argcount, char **argbuf);
+int Cli_RunByString(char *cmd);
 int Cli_Init(void);
 int Cli_Run(void);
 int Cli_Task(void);
