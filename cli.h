@@ -51,16 +51,44 @@
 #define CLI_PROMPT_CHAR ">"  //!< Prompt string shows at the head of line
 #define CLI_PROMPT_LEN 1     //!< Prompt string length
 #define CLI_STR_BUF_SIZE 256 //!< Maximum command length
-#define CLI_ARGC_MAX 128     //!< Maximum arguments in a command
-#define CLI_COMMAND_SIZE 256 //!< Number of commands in the list
+#define CLI_ARGC_MAX 32      //!< Maximum arguments in a command
+#define CLI_COMMAND_SIZE 32  //!< Number of commands in the list
 #define CLI_VERSION "1.0.0"  //!< CLI version string
 
 /*!@defgroup CLI history function defines
  *
  */
-#define HISTORY_ENABLE 1      //!< Enable history function
-#define HISTORY_DEPTH 32      //!< Maximum number of command saved in history
-#define HISTORY_MEM_SIZE 1024 //!< Maximum RAM usage for history
+#define HISTORY_ENABLE 1     //!< Enable history function
+#define HISTORY_DEPTH 32     //!< Maximum number of command saved in history
+#define HISTORY_MEM_SIZE 256 //!< Maximum RAM usage for history
+
+// General Print
+#define CLI_PRINT(msg, args...)                                                                    \
+    if (CLI_DEBUG_LEVEL >= 0)                                                                      \
+    {                                                                                              \
+        fprintf(stdout, msg, ##args);                                                              \
+    }
+
+// Error Message output, with RED color.
+#define CLI_ERROR(msg, args...)                                                                    \
+    if (CLI_DEBUG_LEVEL >= 1)                                                                      \
+    {                                                                                              \
+        fprintf(stderr, "\e[31m<%s:%d> " msg "\e[0m", __FILE__, __LINE__, ##args);                 \
+    }
+
+// Warning Message output, with Yellow color.
+#define CLI_WARNING(msg, args...)                                                                  \
+    if (CLI_DEBUG_LEVEL >= 2)                                                                      \
+    {                                                                                              \
+        fprintf(stdout, "\e[33m<%s:%d> " msg "\e[0m", __FILE__, __LINE__, ##args);                 \
+    }
+
+// Warning Message output, with Green color.
+#define CLI_INFO(msg, args...)                                                                     \
+    if (CLI_DEBUG_LEVEL >= 3)                                                                      \
+    {                                                                                              \
+        fprintf(stdout, "\e[35m" msg "\e[0m", ##args);                                             \
+    }
 
 /*!@typedef CliCommand_TypeDef
  *          Structure for a CLI command.
@@ -79,22 +107,22 @@ typedef struct {
 typedef struct {
     const char  ShortName; //!< Short name work with "-", e.g. 'h'
     const char *LongName;  //!< Long name work with "--", e.g. "help"
-    const int
-        ReturnVal; //!< Return value . Use short name would be the simplest way.
+    const int   ReturnVal; //!< Return value . Use short name would be the simplest way.
 } CliOption_TypeDef;
 
 /*! Variables ---------------------------------------------------------------*/
+extern int CLI_DEBUG_LEVEL; /*!< -1: Turn off all print                */
+                            /*!< 0: PRINT only, no debug info.         */
+                            /*!< 1: PRINT + ERROR                      */
+                            /*!< 2: PRINT + ERROR + WARNING            */
+                            /*!< 3: PRINT + ERROR + WARNING + INFO     */
 /*! Functions ---------------------------------------------------------------*/
-
-int Cli_GetOpt(int argc, char **args, char **data_ptr,
-               CliOption_TypeDef options[]);
-int Cli_Register(const char *name, const char *prompt,
-                 int (*func)(int, char **));
-int Cli_Unregister(const char *name);
-int Cli_RunByArgs(int argcount, char **argbuf);
-int Cli_RunByString(char *cmd);
-int Cli_Init(void);
-int Cli_Run(void);
-int Cli_Task(void);
+int  Cli_Register(const char *name, const char *prompt, int (*func)(int, char **));
+int  Cli_Unregister(const char *name);
+int  Cli_RunByArgs(int argcount, char **argbuf);
+int  Cli_RunByString(char *cmd);
+int  Cli_Init(void);
+int  Cli_Run(void);
+void Cli_Task(void const *arguments);
 
 #endif /* CLI_H_ */
