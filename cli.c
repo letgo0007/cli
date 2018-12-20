@@ -17,27 +17,27 @@
 /** Private defines ---------------------------------------------------------*/
 
 /** Private function prototypes ---------------------------------------------*/
-extern void         cli_sleep(int ms);
+extern void cli_sleep(int ms);
 extern unsigned int cli_gettick(void);
-extern void *       cli_malloc(size_t size);
-extern void         cli_free(void *ptr);
-extern int          cli_port_init(void);
-extern void         cli_port_deinit(void);
-extern int          cli_port_getc(void);
-extern int          cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options[]);
+extern void * cli_malloc(size_t size);
+extern void cli_free(void *ptr);
+extern int cli_port_init(void);
+extern void cli_port_deinit(void);
+extern int cli_port_getc(void);
+extern int cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options[]);
 
 /** Variables ---------------------------------------------------------------*/
-int                 CLI_DEBUG_LEVEL  = 3;    // Print debug level
-char *              StringPtr        = NULL; // Command String buffer pointer
-unsigned int        StringIdx        = 0;    // Command string index
-char **             HistoryPtr       = NULL; // History pointer buffer pointer
-unsigned int        HistoryQueueHead = 0;    // History queue head
-unsigned int        HistoryQueueTail = 0;    // History queue tail
-unsigned int        HistoryPullDepth = 0;    // History pull depth
-unsigned int        HistoryMemUsage  = 0;    // History total memory usage
-CliCommand_TypeDef *CliCommandList   = NULL; // CLI commands list pointer
-unsigned int        CliNumOfBuiltin  = 0;    // Number of built-in commands
-unsigned int        CliNumOfCommands = 0;    // Number of commands
+int gCliDebugLevel = 3;             // Get debug level from Makefile
+char * StringPtr = NULL;            // Command String buffer pointer
+unsigned int StringIdx = 0;         // Command string index
+char ** HistoryPtr = NULL;          // History pointer buffer pointer
+unsigned int HistoryQueueHead = 0;  // History queue head
+unsigned int HistoryQueueTail = 0;  // History queue tail
+unsigned int HistoryPullDepth = 0;  // History pull depth
+unsigned int HistoryMemUsage = 0;   // History total memory usage
+unsigned int CliNumOfBuiltin = 0;   // Number of built-in commands
+unsigned int CliNumOfCommands = 0;  // Number of commands
+CliCommand_TypeDef *CliCommandList = NULL; // CLI commands list pointer
 
 /** Functions ---------------------------------------------------------------*/
 /*!@brief Insert a char to a position of a string.
@@ -121,7 +121,7 @@ void history_clear(void)
         HistoryQueueHead = 0;
         HistoryQueueTail = 0;
         HistoryPullDepth = 0;
-        HistoryMemUsage  = 0;
+        HistoryMemUsage = 0;
     }
 }
 
@@ -157,7 +157,7 @@ char *history_push(char *string)
 
     // Request memory & copy command
     unsigned int len = strlen(string) + 1;
-    char *       ptr = cli_malloc(len);
+    char * ptr = cli_malloc(len);
     memcpy(ptr, string, len);
 
     // Save new history queue pointer & queue head.
@@ -236,15 +236,15 @@ char *history_pull(int depth)
  */
 int handle_special_key(char c)
 {
-    static char EscBuf[8] = {0};
-    static int  EscIdx    = 0;
-    static char EscFlag   = 0;
+    static char EscBuf[8] = { 0 };
+    static int EscIdx = 0;
+    static char EscFlag = 0;
 
     // Start of ESC flow control
     if (c == '\e')
     {
         EscFlag = 1;
-        EscIdx  = 0;
+        EscIdx = 0;
         memset(EscBuf, 0, 8);
     }
 
@@ -306,6 +306,50 @@ int handle_special_key(char c)
     return 0;
 }
 
+int builtin_debug(int argc, char **args)
+{
+    const char *helptext = "debug usage\n"
+            "\t-e --on     Turn on debug\n"
+            "\t-d --off    Turn off\n"
+            "\t-l --level  Show or set debug level\n"
+            "\t-h --help   Show help text\n";
+
+    if ((argc <= 1) || (strcmp("-h", args[1]) == 0) || (strcmp("--help", args[1]) == 0))
+    {
+        CLI_PRINT("%s", helptext);
+    }
+    else if ((strcmp("-e", args[1]) == 0) || (strcmp("--on", args[1]) == 0))
+    {
+        gCliDebugLevel = 3;
+        CLI_PRINT("Turn on debug log\n");
+    }
+    else if ((strcmp("-d", args[1]) == 0) || (strcmp("--off", args[1]) == 0))
+    {
+        gCliDebugLevel = 0;
+        CLI_PRINT("Turn off debug log\n");
+    }
+    else if ((strcmp("-l", args[1]) == 0) || (strcmp("--level", args[1]) == 0))
+    {
+        if (argc <= 2)
+        {
+            CLI_PRINT("Debug level = %d\n", gCliDebugLevel);
+        }
+        else
+        {
+            unsigned int level = strtol(args[2], NULL, 0);
+            gCliDebugLevel = level;
+            CLI_PRINT("Debug level = %d\n", gCliDebugLevel);
+        }
+    }
+    else
+    {
+        CLI_ERROR("ERROR: invalid option of [%s]\n", args[1]);
+    }
+
+    return 0;
+
+}
+
 /*!@brief Built-in command of "help"
  *
  */
@@ -350,9 +394,9 @@ int builtin_version(int argc, char **argv)
 int builtin_history(int argc, char **args)
 {
     const char *helptext = "history usage:\n"
-                           "\t-d --dump  Dump command history.\n"
-                           "\t-c --clear Clear command history.\n"
-                           "\t-h --help  Show this help text.\n";
+            "\t-d --dump  Dump command history.\n"
+            "\t-c --clear Clear command history.\n"
+            "\t-h --help  Show this help text.\n";
 
 #if HISTORY_ENABLE == 0
     CLI_PRINT("History is function disabled.\n");
@@ -374,8 +418,8 @@ int builtin_history(int argc, char **args)
         for (int i = HistoryQueueTail; i < HistoryQueueHead; i++)
         {
             int j = i % HISTORY_DEPTH;
-            CLI_PRINT("%-6d 0x%08X %s\n", i, (int)HistoryPtr[j],
-                      (HistoryPtr[j] == NULL) ? "NULL" : HistoryPtr[j]);
+            CLI_PRINT("%-6d 0x%08X %s\n", i, (int )HistoryPtr[j],
+                    (HistoryPtr[j] == NULL) ? "NULL" : HistoryPtr[j]);
         }
     }
     else if ((strcmp("-c", args[1]) == 0) || (strcmp("--clear", args[1]) == 0))
@@ -406,14 +450,11 @@ int builtin_test(int argc, char **args)
         CLI_PRINT("Args[%d] = %s\n", i, args[i] == NULL ? "NULL" : args[i]);
     }
 
-    static CliOption_TypeDef options[] = {{'i', "integer", 'i'},
-                                          {'s', "string", 's'},
-                                          {0, "bool", 'b'},
-                                          {'h', "help", 'h'},
-                                          {0, "", 0}};
+    static CliOption_TypeDef options[] = { { 'i', "integer", 'i' }, { 's', "string", 's' }, { 0,
+            "bool", 'b' }, { 'h', "help", 'h' }, { 0, "", 0 } };
 
-    int   c       = 0;
-    char *data[1] = {0};
+    int c = 0;
+    char *data[1] = { 0 };
 
     do
     {
@@ -522,8 +563,8 @@ int builtin_time(int argc, char **args)
     }
 
     unsigned int start = cli_gettick();
-    int          ret   = Cli_RunByArgs(argc - 1, args + 1);
-    unsigned int stop  = cli_gettick();
+    int ret = Cli_RunByArgs(argc - 1, args + 1);
+    unsigned int stop = cli_gettick();
 
     CLI_PRINT("time: %d.%03d s\n", (stop - start) / 1000, (stop - start) % 1000);
 
@@ -563,17 +604,17 @@ int builtin_time(int argc, char **args)
  */
 int cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options[])
 {
-    static int    op_argc = 0;
+    static int op_argc = 0;
     static char **op_args = NULL;
-    static int    op_idx  = 0;
-    static int    op_ret  = '?';
+    static int op_idx = 0;
+    static int op_ret = '?';
 
     if ((op_argc != argc) || (op_args != args))
     {
         op_argc = argc;
         op_args = args;
-        op_idx  = 1; // ignore the 1st argument, it's the command name.
-        op_ret  = '?';
+        op_idx = 1; // ignore the 1st argument, it's the command name.
+        op_ret = '?';
     }
 
     if ((op_argc > 0) && (op_idx < op_argc) && (op_args[op_idx] != NULL))
@@ -597,7 +638,7 @@ int cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options
                 i++;
             }
             *data_ptr = args[op_idx];
-            op_ret    = '?';
+            op_ret = '?';
             goto exit;
         }
         // Short Options with "-"
@@ -616,7 +657,7 @@ int cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options
                 i++;
             }
             *data_ptr = args[op_idx];
-            op_ret    = '?';
+            op_ret = '?';
             goto exit;
         }
         // Data options
@@ -631,8 +672,7 @@ int cli_getopt(int argc, char **args, char **data_ptr, CliOption_TypeDef options
         return -1;
     }
 
-exit:
-    op_idx++;
+    exit: op_idx++;
     return op_ret;
 }
 
@@ -691,7 +731,7 @@ char *cli_getline(void)
             CLI_PRINT("\n");
 
             // Return pointer and length
-            StringIdx        = 0;
+            StringIdx = 0;
             HistoryPullDepth = 0;
             return StringPtr;
         }
@@ -724,7 +764,7 @@ char *cli_getline(void)
             break;
         }
         }
-    } while ((c != 0xFF) && (c != EOF));
+    } while ((c != '\xff') && (c != EOF));
 
     return NULL;
 }
@@ -744,8 +784,8 @@ char *cli_strtoarg(char *str, int *argc, char **argv)
         return NULL;
     }
 
-    *argc              = 0;
-    char flag_quote    = 0; // Flags for inside 2x quote mark ""
+    *argc = 0;
+    char flag_quote = 0; // Flags for inside 2x quote mark ""
     char flag_arg_head = 0; // Flags to mark argument head
 
     for (int i = 0; str[i] != 0; i++)
@@ -761,7 +801,7 @@ char *cli_strtoarg(char *str, int *argc, char **argv)
         {
             // Set ignore flag up. string inside "" will not be processed.
             flag_quote = !flag_quote;
-            str[i]     = 0;
+            str[i] = 0;
             break;
         }
         case ';':
@@ -769,7 +809,7 @@ char *cli_strtoarg(char *str, int *argc, char **argv)
             // Command separator, return tail commands for next process.
             if (flag_quote == 0)
             {
-                str[i]     = 0;
+                str[i] = 0;
                 char *tail = str + i + 1;
 
                 return (*tail == 0) ? NULL : tail;
@@ -784,7 +824,7 @@ char *cli_strtoarg(char *str, int *argc, char **argv)
             // Separators
             if (flag_quote == 0)
             {
-                str[i]        = 0;
+                str[i] = 0;
                 flag_arg_head = 0;
             }
             break;
@@ -806,13 +846,16 @@ char *cli_strtoarg(char *str, int *argc, char **argv)
     return NULL;
 }
 
-void CLI_PRINTF(const char *format, ...)
+char *Cli_TimeStampStr(void)
 {
-    va_list args;
 
-    va_start(args, format);
-    vfprintf(stdout, format, args);
-    va_end(args);
+    static char timestamp[16] = { 0 };
+
+    uint32_t tick = cli_gettick();
+
+    sprintf(timestamp, "[%03u.%03u]", tick / 1000, tick % 1000);
+
+    return timestamp;
 }
 
 /*!@brief   Register a command to CLI.
@@ -837,9 +880,9 @@ int Cli_Register(const char *name, const char *prompt, int (*func)(int, char **)
         // Find a empty slot to save the command.
         if ((CliCommandList[i].Name == NULL) && (CliCommandList[i].Func == NULL))
         {
-            CliCommandList[i].Name   = name;
+            CliCommandList[i].Name = name;
             CliCommandList[i].Prompt = prompt;
-            CliCommandList[i].Func   = func;
+            CliCommandList[i].Func = func;
 
             CliNumOfCommands++;
             return i;
@@ -861,9 +904,9 @@ int Cli_Unregister(const char *name)
         // Delete the command
         if (strcmp(CliCommandList[i].Name, name) == 0)
         {
-            CliCommandList[i].Name   = NULL;
+            CliCommandList[i].Name = NULL;
             CliCommandList[i].Prompt = NULL;
-            CliCommandList[i].Func   = NULL;
+            CliCommandList[i].Func = NULL;
 
             CliNumOfCommands--;
             return i;
@@ -925,9 +968,9 @@ int Cli_RunByString(char *cmd)
     do
     {
         // String to arguments
-        int    argc = 0;
+        int argc = 0;
         char **argv = cli_malloc(sizeof(char *) * CLI_ARGC_MAX);
-        sub_cmd     = cli_strtoarg(sub_cmd, &argc, argv);
+        sub_cmd = cli_strtoarg(sub_cmd, &argc, argv);
 
         // Run by arguments
         Cli_RunByArgs(argc, argv);
@@ -942,8 +985,8 @@ int Cli_RunByString(char *cmd)
 int Cli_Init(void)
 {
     // Clear operation buffers
-    StringIdx      = 0;
-    StringPtr      = cli_malloc(sizeof(char) * CLI_STR_BUF_SIZE);
+    StringIdx = 0;
+    StringPtr = cli_malloc(sizeof(char) * CLI_STR_BUF_SIZE);
     CliCommandList = cli_malloc(sizeof(CliCommand_TypeDef) * CLI_COMMAND_SIZE);
 
 #if HISTORY_ENABLE
@@ -952,21 +995,20 @@ int Cli_Init(void)
 #endif
 
     // Register built-in commands.
+    Cli_Register("debug", "Set debug level", &builtin_debug);
     Cli_Register("help", "Show list of commands & prompt.", &builtin_help);
     Cli_Register("history", "Show command history", &builtin_history);
     Cli_Register("test", "CLI argument parse example", &builtin_test);
-    Cli_Register("repeat", "Repeat excution of a command", &builtin_repeat);
-    Cli_Register("sleep", "Suspend execution for an interval of time", &builtin_sleep);
+    Cli_Register("repeat", "Repeat execute a command", &builtin_repeat);
+    Cli_Register("sleep", "Put CLI to sleep for an interval of time", &builtin_sleep);
     Cli_Register("time", "Time command execution", &builtin_time);
     Cli_Register("version", "Show CLI version", &builtin_version);
-    CliNumOfBuiltin = 7;
+    CliNumOfBuiltin = 8;
     // Initialize IO port
     cli_port_init();
 
     // Show Version
-    CLI_DEBUG_LEVEL = 3;
     builtin_version(0, NULL);
-    CLI_INFO("[%d]%s: Initialize Finish\n", cli_gettick(), __FUNCTION__);
     return CLI_OK;
 }
 
@@ -1005,13 +1047,12 @@ int Cli_Run(void)
 
 void Cli_Task(void const *arguments)
 {
-    // Initialize
-    cli_sleep(1);
+    /* Initialize */
+    cli_sleep(10); // Wait 10ms for Hardware to settle
     Cli_Init();
-
-    CLI_INFO("[%d]%s: Initialize Finish\n", cli_gettick(), __FUNCTION__);
-
+    CLI_INFO("%s: Initialize Finish\n", __FUNCTION__);
     cli_sleep(1000); // Wait 1s to start CLI
+    CLI_PRINT(CLI_PROMPT_CHAR);
 
     /* Infinite loop */
     for (;;)

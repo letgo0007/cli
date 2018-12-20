@@ -24,7 +24,8 @@
 
 #include "cli.h"
 
-void cli_sleep(float s) {
+void cli_sleep(float s)
+{
     usleep(s * 1000000);
 }
 
@@ -32,27 +33,32 @@ void cli_sleep(float s) {
  *
  * @return
  */
-unsigned int cli_gettick(void) {
+unsigned int cli_gettick(void)
+{
     struct timeb tm;
     ftime(&tm);
-    return (unsigned int)(tm.time * 1000 + tm.millitm);
+    return (unsigned int) (tm.time * 1000 + tm.millitm);
 }
 
-void *cli_malloc(size_t size) {
+void *cli_malloc(size_t size)
+{
 
     void *ptr = NULL;
-    while (ptr == NULL) {
+    while (ptr == NULL)
+    {
         ptr = malloc(size);
     }
     memset(ptr, 0, size);
     return ptr;
 }
 
-void cli_free(void *ptr) {
+void cli_free(void *ptr)
+{
     free(ptr);
 }
 
-int cli_port_init() {
+int cli_port_init()
+{
     struct termios new, old;
     int flag;
 
@@ -65,21 +71,24 @@ int cli_port_init() {
     // Set STDIN to Non-blocking mode.
     flag = fcntl(STDIN_FILENO, F_GETFL);
     flag |= O_NONBLOCK;
-    if (fcntl(STDIN_FILENO, F_SETFL, flag) == -1) {
+    if (fcntl(STDIN_FILENO, F_SETFL, flag) == -1)
+    {
         return (-1);
     }
 
-    setvbuf(stdout, (char *)NULL, _IOLBF, 1024);
-    setvbuf(stderr, (char *)NULL, _IONBF, 1);
-    setvbuf(stdin, (char *)NULL, _IONBF, 1);
+    setvbuf(stdout, (char *) NULL, _IOLBF, 1024);
+    setvbuf(stderr, (char *) NULL, _IONBF, 1);
+    setvbuf(stdin, (char *) NULL, _IONBF, 1);
 
     return 0;
 }
 
-void cli_port_deinit() {
+void cli_port_deinit()
+{
     ;
 }
 
-int cli_port_getc(void) {
+int cli_port_getc(void)
+{
     return getchar();
 }
